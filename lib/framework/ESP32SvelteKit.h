@@ -27,6 +27,8 @@
 #include <BatteryService.h>
 #include <FactoryResetService.h>
 #include <DownloadFirmwareService.h>
+#include <GitHubReleaseService.h>
+#include <GitHubReleaseEndpoint.h>
 #include <EventSocket.h>
 #include <MqttSettingsService.h>
 #include <MqttStatus.h>
@@ -49,6 +51,12 @@
 #include <PsychicHttp.h>
 #include <vector>
 
+#if FT_ENABLED(FT_HOME_ASSISTANT)
+#include <HomeAssistant/HAService.h>
+#include <HomeAssistant/HAUpdateService.h>
+#include <HomeAssistant/HADiagnosticService.h>
+#endif
+
 #ifdef EMBED_WWW
 #include <WWWData.h>
 #endif
@@ -63,6 +71,14 @@
 
 #ifndef APP_NAME
 #define APP_NAME "ESP32 SvelteKit Demo"
+#endif
+
+#ifndef GITHUB_REPO_OWNER
+#define GITHUB_REPO_OWNER "theelims"
+#endif
+
+#ifndef GITHUB_REPO_NAME
+#define GITHUB_REPO_NAME "ESP32-sveltekit"
 #endif
 
 #ifndef ESP32SVELTEKIT_RUNNING_CORE
@@ -184,6 +200,28 @@ public:
         return &_restartService;
     }
 
+    DownloadFirmwareService *getDownloadFirmwareService()
+    {
+        return &_downloadFirmwareService;
+    }
+
+#if FT_ENABLED(FT_HOME_ASSISTANT)
+    HAService *getHAService()
+    {
+        return &_haService;
+    }
+
+    HAUpdateService *getHAUpdateService()
+    {
+        return &_haUpdateService;
+    }
+
+    HADiagnosticService *getHADiagnosticService()
+    {
+        return &_haDiagnosticService;
+    }
+#endif
+
     HealthCheckService *getHealthCheckService()
     {
         return &_healthCheckService;
@@ -235,6 +273,12 @@ private:
 #endif
 #if FT_ENABLED(FT_DOWNLOAD_FIRMWARE)
     DownloadFirmwareService _downloadFirmwareService;
+    GitHubReleaseEndpoint _githubReleaseEndpoint;
+#endif
+#if FT_ENABLED(FT_HOME_ASSISTANT)
+    HAService _haService;
+    HAUpdateService _haUpdateService;
+    HADiagnosticService _haDiagnosticService;
 #endif
 #if FT_ENABLED(FT_MQTT)
     MqttSettingsService _mqttSettingsService;

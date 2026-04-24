@@ -64,7 +64,6 @@ export type BrokerSettings = {
 	mqtt_path: string;
 	name: string;
 	unique_id: string;
-	status_topic: string;
 };
 
 export type NTPStatus = {
@@ -118,6 +117,7 @@ export type OTAStatus = {
 export type StaticSystemInformation = {
 	esp_platform: string;
 	firmware_version: string;
+	build_target: string;
 	cpu_freq_mhz: number;
 	cpu_type: string;
 	cpu_rev: number;
