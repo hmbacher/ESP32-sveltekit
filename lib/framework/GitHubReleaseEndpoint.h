@@ -19,6 +19,7 @@
 #include <SecurityManager.h>
 #include <GitHubReleaseService.h>
 #include <ArduinoJson.h>
+#include <Features.h>
 
 #define GITHUB_RELEASE_PATH "/rest/github-release"
 

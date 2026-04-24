@@ -16,14 +16,14 @@ const config: UserConfig = {
 	],
 	server: {
 		proxy: {
-			// Proxying REST: http://localhost:5173/rest/bar -> http://192.168.1.83/rest/bar
+			// Proxying REST: http://localhost:5173/rest/bar -> http://192.168.178.122/rest/bar
 			'/rest': {
-				target: 'http://192.168.1.111',
+				target: 'http://192.168.178.122',
 				changeOrigin: true
 			},
-			// Proxying websockets ws://localhost:5173/ws -> ws://192.168.1.83/ws
+			// Proxying websockets ws://localhost:5173/ws -> ws://192.168.178.122/ws
 			'/ws': {
-				target: 'ws://192.168.1.111',
+				target: 'ws://192.168.178.122',
 				changeOrigin: true,
 				ws: true
 			}

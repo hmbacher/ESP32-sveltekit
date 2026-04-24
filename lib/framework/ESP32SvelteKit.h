@@ -73,13 +73,6 @@
 #define APP_NAME "ESP32 SvelteKit Demo"
 #endif
 
-#ifndef GITHUB_REPO_OWNER
-#define GITHUB_REPO_OWNER "theelims"
-#endif
-
-#ifndef GITHUB_REPO_NAME
-#define GITHUB_REPO_NAME "ESP32-sveltekit"
-#endif
 
 #ifndef ESP32SVELTEKIT_RUNNING_CORE
 #define ESP32SVELTEKIT_RUNNING_CORE -1
@@ -200,10 +193,13 @@ public:
         return &_restartService;
     }
 
+#if FT_ENABLED(FT_DOWNLOAD_FIRMWARE)
+
     DownloadFirmwareService *getDownloadFirmwareService()
     {
         return &_downloadFirmwareService;
     }
+#endif
 
 #if FT_ENABLED(FT_HOME_ASSISTANT)
     HAService *getHAService()

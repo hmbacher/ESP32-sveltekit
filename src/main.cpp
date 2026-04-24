@@ -27,7 +27,6 @@
 
 #include <ESP32SvelteKit.h>
 #include <PsychicHttpServer.h>
-#include <GeniusGateway.h>
 #include <nvs_flash.h>
 #include <esp_http_server.h>
 
@@ -36,8 +35,6 @@
 PsychicHttpServer server;
 
 ESP32SvelteKit esp32sveltekit(&server, 150);
-
-GeniusGateway geniusGateway = GeniusGateway(&esp32sveltekit);
 
 constexpr const char *TAG = "main"; ///< Log tag for main application
 
@@ -109,9 +106,6 @@ void setup()
 
     // start ESP32-SvelteKit
     esp32sveltekit.begin();
-
-    // start Genius Gateway
-    geniusGateway.begin();
 }
 
 /// Main loop - delete Arduino loop task as ESP32SvelteKit handles everything

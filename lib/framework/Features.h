@@ -78,9 +78,19 @@
 #if !FT_ENABLED(FT_MQTT) || !FT_ENABLED(FT_DOWNLOAD_FIRMWARE)
 #error "FT_HOME_ASSISTANT requires FT_MQTT=1 and FT_DOWNLOAD_FIRMWARE=1"
 #endif
+#endif
+
 // Ethernet feature off by default
 #ifndef FT_ETHERNET
 #define FT_ETHERNET 0
+#endif
+
+#ifndef GITHUB_REPO_OWNER
+#define GITHUB_REPO_OWNER "theelims"
+#endif
+
+#ifndef GITHUB_REPO_NAME
+#define GITHUB_REPO_NAME "ESP32-sveltekit"
 #endif
 
 #endif
