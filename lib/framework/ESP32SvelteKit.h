@@ -73,7 +73,6 @@
 #define APP_NAME "ESP32 SvelteKit Demo"
 #endif
 
-
 #ifndef ESP32SVELTEKIT_RUNNING_CORE
 #define ESP32SVELTEKIT_RUNNING_CORE -1
 #endif

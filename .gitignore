@@ -2,7 +2,6 @@
 .clang_complete
 .gcc-flags.json
 *Thumbs.db
-/data
 /data/www
 /interface/build
 /interface/node_modules
@@ -19,19 +18,6 @@ lib/framework/WWWData.h
 ssl_certs/cacert.pem
 /logs
 .aid
-
-# Own exceptions ===
-# Misc
-compile_commands.json
-/scripts/__pycache__
-/ssl_certs
-# pioarduino's Hybrid Compile feature
-.dummy
-managed_components
-dependencies.lock
-sdkconfig*
-CMakeLists.txt
-src/CMakeLists.txt
 /scripts/__pycache__
 .DS_Store
 *.bak
