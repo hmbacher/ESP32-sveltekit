@@ -53,6 +53,7 @@
 
 #if FT_ENABLED(FT_HOME_ASSISTANT)
 #include <HomeAssistant/HAService.h>
+#include <HomeAssistant/HASettingsService.h>
 #include <HomeAssistant/HAUpdateService.h>
 #include <HomeAssistant/HADiagnosticService.h>
 #endif
@@ -206,6 +207,11 @@ public:
         return &_haService;
     }
 
+    HASettingsService *getHASettingsService()
+    {
+        return &_haSettingsService;
+    }
+
     HAUpdateService *getHAUpdateService()
     {
         return &_haUpdateService;
@@ -272,6 +278,7 @@ private:
 #endif
 #if FT_ENABLED(FT_HOME_ASSISTANT)
     HAService _haService;
+    HASettingsService _haSettingsService;
     HAUpdateService _haUpdateService;
     HADiagnosticService _haDiagnosticService;
 #endif

@@ -42,6 +42,7 @@ ESP32SvelteKit::ESP32SvelteKit(PsychicHttpServer *server, unsigned int numberEnd
 #endif
 #if FT_ENABLED(FT_HOME_ASSISTANT)
                                                                                           _haService(_mqttSettingsService.getMqttClient()),
+                                                                                          _haSettingsService(server, &ESPFS, &_securitySettingsService, &_haService),
                                                                                           _haUpdateService(&_haService, &_downloadFirmwareService, &_socket),
                                                                                           _haDiagnosticService(&_haService),
 #endif
@@ -89,6 +90,21 @@ void ESP32SvelteKit::begin()
     // SvelteKit uses a lot of handlers, so we need to increase the max_uri_handlers
     // WWWData has 77 Endpoints, Framework has 27, and Lighstate Demo has 4
     _server->config.max_uri_handlers = _numberEndpoints;
+
+    // GitHubReleaseEndpoint performs a synchronous HTTPS request from the HTTP
+    // server thread. The default 4 KB stack is not enough for the TLS handshake
+    // and triggers a "Double exception" stack overflow on the first call.
+    // 8 KB is a safe baseline; apps may override via -D HTTPD_STACK_SIZE=...
+    // before this point (e.g. by setting it directly on `server.config` from
+    // main.cpp prior to esp32sveltekit.begin()).
+#ifndef HTTPD_STACK_SIZE
+#define HTTPD_STACK_SIZE 8192
+#endif
+    if (_server->config.stack_size < HTTPD_STACK_SIZE)
+    {
+        _server->config.stack_size = HTTPD_STACK_SIZE;
+    }
+
     _server->listen(80);
 
 #ifdef EMBED_WWW
@@ -200,6 +216,14 @@ void ESP32SvelteKit::begin()
 #endif
 
 #if FT_ENABLED(FT_HOME_ASSISTANT)
+    // Order matters:
+    //   1. HAService.begin() — starts the publish task and wires onConnect
+    //   2. HASettingsService.begin() — loads persisted settings and applies
+    //      them to HAService (sets enabled/prefix/identity)
+    //   3. HAUpdateService / HADiagnosticService — register their entities
+    //      via HAService::onPublishAll
+    _haService.begin();
+    _haSettingsService.begin();
     _haUpdateService.begin();
     _haDiagnosticService.begin();
 #endif
