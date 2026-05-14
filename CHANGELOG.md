@@ -7,19 +7,26 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Add originID to StateUpdateResult update [#110](https://github.com/theelims/ESP32-sveltekit/pull/110)
-- Add originID to StateUpdateResult update [#110](https://github.com/theelims/ESP32-sveltekit/pull/110)
 - Ethernet Support [#113](https://github.com/theelims/ESP32-sveltekit/pull/113)
+- Added default factory values for `FACTORY_HA_MANUFACTURER` ("ESP32 SvelteKit Project") and `FACTORY_HA_MODEL` ("ESP32 SvelteKit") in `factory_settings.ini`.
 
 ### Changed
 
 - Changed the width of the confirm dialog.
 - SvelteKit bundling as single files to reduce heap consumption.
 - Rework of firmware upload [#107](https://github.com/theelims/ESP32-sveltekit/pull/107)
+- Integrated Home Assistant configuration into the MQTT settings card as a nested collapsible section, removing the standalone HA settings card from the page.
+- Home Assistant settings now track unsaved changes (dirty state indicator) and the Apply button is disabled until a change is made.
+- Home Assistant settings enable toggle changed from checkbox to toggle switch for visual consistency.
+- Device Name placeholder in Home Assistant settings now dynamically shows the active firmware name (e.g. "empty falls back to firmware name: ESP32 SvelteKit").
+- Improved icon vertical alignment in `SettingsCard` and `Collapsible` components so the icon aligns with the first line even on wrapped titles.
+- GitHub Firmware Manager table header is now responsive — the date column collapses on small screens and the install button column is always visible.
 
-### Fixes
+### Fixed
 
 - WiFi reconnection issues [#109](https://github.com/theelims/ESP32-sveltekit/issues/109)
 - Blurred toast notifications [#114](https://github.com/theelims/ESP32-sveltekit/issues/114)
+- Fixed missing `shrink-0` on status hexagon icons in MQTT, NTP, Access Point, WiFi, System Status, Metrics, and User pages, preventing icons from shrinking incorrectly in flex layouts.
 
 ## [0.6.0] - 2025-11-03
 

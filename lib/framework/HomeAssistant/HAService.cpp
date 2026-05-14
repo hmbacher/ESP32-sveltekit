@@ -237,6 +237,11 @@ void HAService::onPublishAll(PublishAllCallback callback)
     _publishCallbacks.push_back(callback);
 }
 
+void HAService::onUnpublishAll(PublishAllCallback callback)
+{
+    _unpublishCallbacks.push_back(callback);
+}
+
 void HAService::publishAll()
 {
     if (!isReady())
@@ -263,6 +268,32 @@ void HAService::publishAll()
     {
         if (dev)
             dev->publishAll();
+    }
+}
+
+void HAService::unpublishAll()
+{
+    if (!isReady())
+    {
+        ESP_LOGW(TAG, "unpublishAll() called but HA integration is not ready");
+        return;
+    }
+
+    ESP_LOGI(TAG, "Unpublishing all HA entities (%d callbacks, main+%d sub-devices)",
+             _unpublishCallbacks.size(), (int)_subDevices.size());
+
+    for (auto &callback : _unpublishCallbacks)
+    {
+        callback();
+    }
+
+    if (_mainDevice)
+        _mainDevice->unpublishAll();
+
+    for (auto &dev : _subDevices)
+    {
+        if (dev)
+            dev->unpublishAll();
     }
 }
 

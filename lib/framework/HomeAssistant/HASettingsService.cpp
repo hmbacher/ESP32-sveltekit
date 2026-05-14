@@ -49,6 +49,8 @@ void HASettingsService::_applyToHAService()
     if (_haService == nullptr)
         return;
 
+    bool wasReady = _haService->isReady();
+
     // Empty device_name falls back to APP_NAME (compile-time firmware name)
     String name = _state.deviceName.isEmpty() ? String(APP_NAME) : _state.deviceName;
 
@@ -56,6 +58,13 @@ void HASettingsService::_applyToHAService()
     _haService->setManufacturer(_state.manufacturer);
     _haService->setModel(_state.model);
     _haService->setDiscoveryPrefix(_state.discoveryPrefix);
+
+    // Remove from HA before disabling — must happen while MQTT is still connected
+    if (wasReady && !_state.enabled)
+    {
+        _haService->unpublishAll();
+    }
+
     _haService->setEnabled(_state.enabled);
 
     ESP_LOGI(TAG, "Applied HA settings (enabled=%d, prefix=%s, device=%s)",

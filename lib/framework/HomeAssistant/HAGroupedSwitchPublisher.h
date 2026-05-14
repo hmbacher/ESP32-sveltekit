@@ -114,14 +114,14 @@ public:
         return *this;
     }
 
-    /** Register with HAService::onPublishAll. */
+    /** Register with HAService::onPublishAll and onUnpublishAll. */
     void begin()
     {
         if (_haService == nullptr)
             return;
 
-        _haService->onPublishAll([this]()
-                                 { this->publishAll(); });
+        _haService->onPublishAll([this]() { this->publishAll(); });
+        _haService->onUnpublishAll([this]() { this->unpublishAll(); });
     }
 
     /** Publish all switch configs, the current shared state, and subscribe. */
@@ -137,6 +137,22 @@ public:
         }
 
         publishState();
+    }
+
+    /** Remove all switch entities from HA. No-op if HAService is not ready. */
+    void unpublishAll()
+    {
+        if (_haService == nullptr || !_haService->isReady())
+            return;
+
+        _haService->publish(_sharedStateTopicAbs(), String(), 0, true, false);
+
+        for (const auto &sw : _switches)
+        {
+            String configTopic = _haService->getDiscoveryPrefix() + "switch" +
+                                 "/" + _haService->getDeviceId() + "/" + sw.objectId + "/config";
+            _haService->publish(configTopic, String(), 0, true, false);
+        }
     }
 
     /** Publish only the shared state JSON. No-op if HAService is not ready. */

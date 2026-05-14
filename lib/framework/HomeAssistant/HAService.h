@@ -228,6 +228,16 @@ public:
     void onPublishAll(PublishAllCallback callback);
 
     /**
+     * @brief Register a callback to be invoked during unpublishAll()
+     *
+     * Used by HAGroupedSensorPublisher and HAGroupedSwitchPublisher to hook
+     * into the service-level unpublish triggered when HA integration is disabled.
+     *
+     * @param callback Function to call during unpublishAll()
+     */
+    void onUnpublishAll(PublishAllCallback callback);
+
+    /**
      * @brief Publish all registered entities
      *
      * Called on MQTT connect. Invokes all registered onPublishAll callbacks
@@ -236,6 +246,15 @@ public:
      * connected.
      */
     void publishAll();
+
+    /**
+     * @brief Remove all registered entities from Home Assistant
+     *
+     * Sends empty retained payloads to every discovery topic so HA deletes
+     * the device and all its entities. Must be called while isReady() is true
+     * (i.e. before setEnabled(false)).
+     */
+    void unpublishAll();
 
     // ========================================================================
     // Devices
@@ -293,8 +312,9 @@ private:
     String _discoveryPrefix;
     bool _enabled;
 
-    // Publish callbacks
+    // Publish / unpublish callbacks
     std::vector<PublishAllCallback> _publishCallbacks;
+    std::vector<PublishAllCallback> _unpublishCallbacks;
 
     // Main device (lazy-created) and sub-devices
     std::unique_ptr<HADevice> _mainDevice;

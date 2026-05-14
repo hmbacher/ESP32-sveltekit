@@ -65,7 +65,7 @@ public:
         settings.discoveryPrefix = root["discovery_prefix"] | FACTORY_HA_DISCOVERY_PREFIX;
         settings.deviceName = root["device_name"] | FACTORY_HA_DEVICE_NAME;
         settings.manufacturer = root["manufacturer"] | FACTORY_HA_MANUFACTURER;
-        settings.model = root["model"] | _HA_MODEL_DEFAULT;
+        settings.model = root["model"] | FACTORY_HA_MODEL;
 
         if (!settings.discoveryPrefix.endsWith("/"))
         {

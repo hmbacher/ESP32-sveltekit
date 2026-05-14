@@ -261,7 +261,7 @@
 
 <SettingsCard collapsible={false}>
 	{#snippet icon()}
-		<Router class="lex-shrink-0 mr-2 h-6 w-6 self-end" />
+		<Router class="h-6 w-6" />
 	{/snippet}
 	{#snippet title()}
 		<span>WiFi Connection</span>
@@ -276,7 +276,7 @@
 			>
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
 					<div
-						class="mask mask-hexagon h-auto w-10 {wifiStatus.status === 3
+						class="mask mask-hexagon h-auto w-10 shrink-0 {wifiStatus.status === 3
 							? 'bg-success'
 							: 'bg-error'}"
 					>
@@ -295,7 +295,7 @@
 				</div>
 				{#if wifiStatus.status === 3}
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<SSID class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -307,7 +307,7 @@
 					</div>
 
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<Home class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -319,7 +319,7 @@
 					</div>
 
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<WiFi class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -352,7 +352,7 @@
 					transition:slide|local={{ duration: 300, easing: cubicOut }}
 				>
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<MAC class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -364,7 +364,7 @@
 					</div>
 
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<Channel class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -376,7 +376,7 @@
 					</div>
 
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<Gateway class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -388,7 +388,7 @@
 					</div>
 
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<Subnet class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -400,7 +400,7 @@
 					</div>
 
 					<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-						<div class="mask mask-hexagon bg-primary h-auto w-10">
+						<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 							<DNS class="text-primary-content h-auto w-full scale-75" />
 						</div>
 						<div>
@@ -417,7 +417,7 @@
 		{#if !page.data.features.security || $user.admin}
 			<Collapsible open={true} class="shadow-lg" isDirty={isSettingsDirty}>
 				{#snippet icon()}
-					<Settings class="lex-shrink-0 mr-2 h-6 w-6 self-end" />
+					<Settings class="h-6 w-6" />
 				{/snippet}
 				{#snippet title()}
 					<span>Settings & Networks</span>
@@ -502,7 +502,7 @@
 									class="rounded-box bg-base-100 grid grid-cols-[auto_auto_minmax(6rem,1fr)_auto] items-center gap-3 p-2"
 								>
 									<Grip class="h-6 w-6 text-base-content/30 cursor-grab" />
-									<div class="mask mask-hexagon bg-primary h-auto w-10">
+									<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 										<Router class="text-primary-content h-auto w-full scale-75" />
 									</div>
 									<div class="flex items-center gap-2 overflow-hidden">

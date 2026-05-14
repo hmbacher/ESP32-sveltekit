@@ -154,7 +154,7 @@
 
 <SettingsCard collapsible={false}>
 	{#snippet icon()}
-		<Clock class="lex-shrink-0 mr-2 h-6 w-6 self-end" />
+		<Clock class="h-6 w-6" />
 	{/snippet}
 	{#snippet title()}
 		<span>Network Time</span>
@@ -169,7 +169,7 @@
 			>
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
 					<div
-						class="mask mask-hexagon h-auto w-10 {ntpStatus.status === 1
+						class="mask mask-hexagon h-auto w-10 shrink-0 {ntpStatus.status === 1
 							? 'bg-success'
 							: 'bg-error'}"
 					>
@@ -188,7 +188,7 @@
 				</div>
 
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-					<div class="mask mask-hexagon bg-primary h-auto w-10">
+					<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 						<Server class="text-primary-content h-auto w-full scale-75" />
 					</div>
 					<div>
@@ -200,7 +200,7 @@
 				</div>
 
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-					<div class="mask mask-hexagon bg-primary h-auto w-10">
+					<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 						<Clock class="text-primary-content h-auto w-full scale-75" />
 					</div>
 					<div>
@@ -215,7 +215,7 @@
 				</div>
 
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-					<div class="mask mask-hexagon bg-primary h-auto w-10">
+					<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 						<UTC class="text-primary-content h-auto w-full scale-75" />
 					</div>
 					<div>
@@ -231,7 +231,7 @@
 				</div>
 
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-					<div class="mask mask-hexagon bg-primary h-auto w-10">
+					<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 						<Stopwatch class="text-primary-content h-auto w-full scale-75" />
 					</div>
 					<div>

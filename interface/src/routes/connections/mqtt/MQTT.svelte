@@ -4,14 +4,23 @@
 	import { cubicOut } from 'svelte/easing';
 	import InputPassword from '$lib/components/InputPassword.svelte';
 	import SettingsCard from '$lib/components/SettingsCard.svelte';
+	import UriInput, { type UriProtocol } from '$lib/components/UriInput.svelte';
 	import { user } from '$lib/stores/user';
 	import { page } from '$app/state';
 	import { notifications } from '$lib/components/toasts/notifications';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import Collapsible from '$lib/components/Collapsible.svelte';
+	import HAConfig from './HAConfig.svelte';
 	import MQTT from '~icons/tabler/topology-star-3';
 	import Client from '~icons/tabler/robot';
 	import type { MQTTSettings, MQTTStatus } from '$lib/types/models';
+
+	const mqttProtocols: UriProtocol[] = [
+		{ scheme: 'mqtt', defaultPort: 1883 },
+		{ scheme: 'mqtts', defaultPort: 8883 },
+		{ scheme: 'ws', defaultPort: 80 },
+		{ scheme: 'wss', defaultPort: 443 }
+	];
 
 	let mqttSettings: MQTTSettings = $state();
 	let mqttStatus: MQTTStatus = $state();
@@ -62,13 +71,20 @@
 		}
 	});
 
-	let formErrors = $state({
-		host: false,
-		port: false,
-		keep_alive: false,
-		topic_length: false,
-		rate_limit: false
-	});
+	let uriError = $state(false);
+	let keepAliveError = $derived(
+		!!mqttSettings &&
+			(!Number.isFinite(Number(mqttSettings.keep_alive)) ||
+				Number(mqttSettings.keep_alive) < 1 ||
+				Number(mqttSettings.keep_alive) > 600)
+	);
+	let rateLimitError = $derived(
+		!!mqttSettings &&
+			(!Number.isFinite(Number(mqttSettings.message_interval_ms)) ||
+				Number(mqttSettings.message_interval_ms) < 0 ||
+				Number(mqttSettings.message_interval_ms) > 1000)
+	);
+	let hasErrors = $derived(uriError || keepAliveError || rateLimitError);
 
 	async function postMQTTSettings(data: MQTTSettings) {
 		try {
@@ -93,41 +109,8 @@
 	}
 
 	function handleSubmitMQTT() {
-		let valid = true;
-
-		// Validate Server URI
-		const regexExpURL =
-			/^(mqtt|mqtts|ws|wss):\/\/((?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+|(?:\d{1,3}\.){3}\d{1,3})(?::(\d{1,5}))?$/;
-
-		if (!regexExpURL.test(mqttSettings.uri)) {
-			valid = false;
-			formErrors.host = true;
-		} else {
-			formErrors.host = false;
-		}
-
-		// Validate if port is a number and within the right range
-		let keepalive = Number(mqttSettings.keep_alive);
-		if (1 <= keepalive && keepalive <= 600) {
-			formErrors.keep_alive = false;
-		} else {
-			formErrors.keep_alive = true;
-			valid = false;
-		}
-
-		// Validate it rate limit is a number and within the right range
-		let ratelimit = Number(mqttSettings.message_interval_ms);
-		if (0 <= ratelimit && ratelimit <= 1000) {
-			formErrors.rate_limit = false;
-		} else {
-			formErrors.rate_limit = true;
-			valid = false;
-		}
-
-		// Submit JSON to REST API
-		if (valid) {
+		if (!hasErrors) {
 			postMQTTSettings(mqttSettings);
-			//alert('Form Valid');
 		}
 	}
 
@@ -141,7 +124,7 @@
 
 <SettingsCard collapsible={false}>
 	{#snippet icon()}
-		<MQTT class="lex-shrink-0 mr-2 h-6 w-6 self-end" />
+		<MQTT class="h-6 w-6" />
 	{/snippet}
 	{#snippet title()}
 		<span>MQTT</span>
@@ -156,7 +139,7 @@
 			>
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
 					<div
-						class="mask mask-hexagon h-auto w-10 {mqttStatus.connected === true
+						class="mask mask-hexagon h-auto w-10 shrink-0 {mqttStatus.connected === true
 							? 'bg-success'
 							: 'bg-error'}"
 					>
@@ -181,7 +164,7 @@
 				</div>
 
 				<div class="rounded-box bg-base-100 flex items-center space-x-3 px-4 py-2">
-					<div class="mask mask-hexagon bg-primary h-auto w-10">
+					<div class="mask mask-hexagon bg-primary h-auto w-10 shrink-0">
 						<Client class="text-primary-content h-auto w-full scale-75" />
 					</div>
 					<div>
@@ -221,21 +204,12 @@
 					<div class="hidden sm:block"></div>
 					<!-- URI -->
 					<div class="sm:col-span-2">
-						<label class="label" for="host">URI</label>
-						<input
-							type="text"
-							class="input w-full invalid:border-error invalid:border-2 {formErrors.host
-								? 'border-error border-2'
-								: ''}"
+						<UriInput
 							bind:value={mqttSettings.uri}
-							id="host"
-							min="3"
-							max="64"
-							required
+							bind:error={uriError}
+							protocols={mqttProtocols}
+							id="mqtt-uri"
 						/>
-						<label class="label" for="host">
-							<span class=" text-error {formErrors.host ? '' : 'hidden'}">Must be a valid URI</span>
-						</label>
 					</div>
 					<!-- Username -->
 					<div>
@@ -262,7 +236,7 @@
 						<label class="label" for="keepalive">Keep Alive </label>
 						<label
 							for="keepalive"
-							class="input w-full invalid:border-error invalid:border-2 {formErrors.keep_alive
+							class="input w-full invalid:border-error invalid:border-2 {keepAliveError
 								? 'border-error border-2'
 								: ''}"
 						>
@@ -278,7 +252,7 @@
 							<span class="label">Seconds</span>
 						</label>
 						<label for="keepalive" class=""
-							><span class=" text-error {formErrors.keep_alive ? '' : 'hidden'}"
+							><span class=" text-error {keepAliveError ? '' : 'hidden'}"
 								>Must be between 1 and 600 seconds</span
 							></label
 						>
@@ -288,7 +262,7 @@
 						<label class="label" for="ratelimit">Publish Message Interval</label>
 						<label
 							for="ratelimit"
-							class="input w-full invalid:border-error invalid:border-2 {formErrors.rate_limit
+							class="input w-full invalid:border-error invalid:border-2 {rateLimitError
 								? 'border-error border-2'
 								: ''}"
 						>
@@ -304,7 +278,7 @@
 							<span class="label">Milliseconds</span>
 						</label>
 						<label for="ratelimit" class=""
-							><span class=" text-error {formErrors.rate_limit ? '' : 'hidden'}"
+							><span class=" text-error {rateLimitError ? '' : 'hidden'}"
 								>Must be between 0 and 1000 milliseconds</span
 							></label
 						>
@@ -322,9 +296,11 @@
 				</div>
 				<div class="divider mb-2 mt-0"></div>
 				<div class="flex flex-wrap justify-end gap-2">
-					<button class="btn btn-primary" type="submit">Apply Settings</button>
+					<button class="btn btn-primary" type="submit" disabled={hasErrors}>Apply Settings</button>
 				</div>
 			</form>
 		</Collapsible>
+
+		<HAConfig />
 	{/if}
 </SettingsCard>

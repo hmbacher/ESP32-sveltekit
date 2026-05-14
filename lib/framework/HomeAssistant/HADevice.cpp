@@ -66,11 +66,20 @@ void HADevice::unpublishAll()
         if (!entity)
             continue;
 
-        // Send empty retained payload → HA removes the device.
-        // Topic: {prefix}{component}/{deviceId}/{objectId}/config
+        // Clear the correctly-formatted discovery config topic (single node_id segment).
         String configTopic = _haService->getDiscoveryPrefix() + entity->component() +
                              "/" + _identity.id + "/" + entity->objectId() + "/config";
         _haService->publish(configTopic, String(), 0, true, false);
+
+        // Also clear the previously-published (incorrect) namespaced topic so stale
+        // retained messages don't linger in the broker after a firmware upgrade.
+        if (!_identity.topicNamespace.isEmpty())
+        {
+            String legacyTopic = _haService->getDiscoveryPrefix() + entity->component() +
+                                 "/" + _identity.topicNamespace + "/" + _identity.id +
+                                 "/" + entity->objectId() + "/config";
+            _haService->publish(legacyTopic, String(), 0, true, false);
+        }
     }
 }
 
@@ -103,6 +112,10 @@ bool HADevice::publishConfig(const String &component,
         }
     }
 
+    // Use only the device ID as node_id in the discovery config topic.
+    // Slashes are not allowed in node_id per HA MQTT discovery spec, and HA
+    // does not subscribe to discovery topics deeper than one node_id segment.
+    // The topicNamespace is used only for state/command topic routing via getBaseTopic().
     String configTopic = _haService->getDiscoveryPrefix() + component +
                          "/" + _identity.id + "/" + objectId + "/config";
 
