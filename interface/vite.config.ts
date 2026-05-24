@@ -2,6 +2,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import type { UserConfig } from 'vite';
 import Icons from 'unplugin-icons/vite';
 import viteLittleFS from './vite-plugin-littlefs';
+import viteAppVersion from './vite-plugin-app-version';
 import tailwindcss from '@tailwindcss/vite';
 
 const config: UserConfig = {
@@ -12,7 +13,9 @@ const config: UserConfig = {
 		}),
 		tailwindcss(),
 		// Shorten file names for LittleFS 32 char limit
-		viteLittleFS()
+		viteLittleFS(),
+		// Stamp APP_VERSION_FULL into version.ts (frontend) and AppVersion.h (firmware)
+		viteAppVersion()
 	],
 	server: {
 		proxy: {

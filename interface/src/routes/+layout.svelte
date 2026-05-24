@@ -10,6 +10,7 @@
 	import { page } from '$app/state';
 	import { Modals, modals } from 'svelte-modals';
 	import Toast from '$lib/components/toasts/Toast.svelte';
+	import VersionMismatchBanner from '$lib/components/VersionMismatchBanner.svelte';
 	import { notifications } from '$lib/components/toasts/notifications';
 	import { fade } from 'svelte/transition';
 	import '../app.css';
@@ -149,6 +150,7 @@
 {#if page.data.features.security && $user.bearer_token === ''}
 	<Login signIn={initSocket} />
 {:else}
+	<VersionMismatchBanner />
 	<div class="drawer lg:drawer-open">
 		<input id="main-menu" type="checkbox" class="drawer-toggle" bind:checked={menuOpen} />
 		<div class="drawer-content flex flex-col">
