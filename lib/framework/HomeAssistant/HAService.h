@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <PsramAllocator.h>
 
 #include <HomeAssistant/HADeviceIdentity.h>
 
@@ -313,12 +314,12 @@ private:
     bool _enabled;
 
     // Publish / unpublish callbacks
-    std::vector<PublishAllCallback> _publishCallbacks;
-    std::vector<PublishAllCallback> _unpublishCallbacks;
+    std::vector<PublishAllCallback, PsramAllocator<PublishAllCallback>> _publishCallbacks;
+    std::vector<PublishAllCallback, PsramAllocator<PublishAllCallback>> _unpublishCallbacks;
 
     // Main device (lazy-created) and sub-devices
     std::unique_ptr<HADevice> _mainDevice;
-    std::vector<std::unique_ptr<HADevice>> _subDevices;
+    std::vector<std::unique_ptr<HADevice>, PsramAllocator<std::unique_ptr<HADevice>>> _subDevices;
 
     /** Ensure _mainDevice exists and its identity is synced with current state. */
     void _ensureMainDevice();

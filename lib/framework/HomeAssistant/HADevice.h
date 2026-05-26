@@ -20,6 +20,7 @@
 #include <memory>
 #include <type_traits>
 #include <vector>
+#include <PsramAllocator.h>
 
 #include <HomeAssistant/HADeviceIdentity.h>
 #include <HomeAssistant/HAEntityBase.h>
@@ -183,7 +184,7 @@ public:
 private:
     HAService *_haService;
     HADeviceIdentity _identity;
-    std::vector<std::unique_ptr<HAEntityBase>> _entities;
+    std::vector<std::unique_ptr<HAEntityBase>, PsramAllocator<std::unique_ptr<HAEntityBase>>> _entities;
 
     template <class E>
     E *_registerAs(std::unique_ptr<E> entity, HACategory category)
