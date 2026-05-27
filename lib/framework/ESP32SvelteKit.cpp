@@ -82,6 +82,11 @@ void ESP32SvelteKit::begin()
     ESP_LOGV(SVK_TAG, "Loading settings from files system");
     ESPFS.begin(true);
 
+    if (_preServiceHook)
+    {
+        _preServiceHook();
+    }
+
 #if FT_ENABLED(FT_ETHERNET)
     _ethernetSettingsService.initEthernet();
 #endif

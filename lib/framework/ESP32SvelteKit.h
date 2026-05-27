@@ -85,6 +85,12 @@
 // define callback function to include into the main loop
 typedef std::function<void()> loopCallback;
 
+// Hook invoked once during begin() after ESPFS is mounted but before any
+// settings/state services read their persisted config. Consumers can use it
+// to run one-time, file-level transforms (e.g. config migrations) so that
+// when service.begin() reads its file, the on-disk shape is already current.
+typedef std::function<void()> preServiceHook;
+
 // enum for connection status
 enum class ConnectionStatus
 {
@@ -248,6 +254,11 @@ public:
         _loopFunctions.push_back(function);
     }
 
+    void setPreServiceHook(preServiceHook hook)
+    {
+        _preServiceHook = std::move(hook);
+    }
+
 private:
     PsychicHttpServer *_server;
     TaskHandle_t _loopTaskHandle;
@@ -313,6 +324,7 @@ protected:
     void _loop();
 
     std::vector<loopCallback> _loopFunctions;
+    preServiceHook _preServiceHook;
 
     // Connectivity status
     ConnectionStatus _connectionStatus = ConnectionStatus::OFFLINE;
