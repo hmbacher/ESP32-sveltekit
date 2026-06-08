@@ -5,15 +5,19 @@
 	import InputPassword from '$lib/components/InputPassword.svelte';
 	import SettingsCard from '$lib/components/SettingsCard.svelte';
 	import UriInput, { type UriProtocol } from '$lib/components/UriInput.svelte';
+	import DirtyField from '$lib/components/DirtyField.svelte';
+	import DirtyMarker from '$lib/components/DirtyMarker.svelte';
+	import { createDirtyState } from '$lib/utils/dirtyState.svelte';
 	import { user } from '$lib/stores/user';
 	import { page } from '$app/state';
 	import { notifications } from '$lib/components/toasts/notifications';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import Collapsible from '$lib/components/Collapsible.svelte';
-	import HAConfig from './HAConfig.svelte';
-	import MQTT from '~icons/tabler/topology-star-3';
+	import IconMQTT from '~icons/tabler/topology-star-3';
+	import IconSettings from '~icons/tabler/adjustments-alt';
 	import Client from '~icons/tabler/robot';
 	import type { MQTTSettings, MQTTStatus } from '$lib/types/models';
+	import HAConfig from './HAConfig.svelte';
 
 	const mqttProtocols: UriProtocol[] = [
 		{ scheme: 'mqtt', defaultPort: 1883 },
@@ -22,10 +26,32 @@
 		{ scheme: 'wss', defaultPort: 443 }
 	];
 
-	let mqttSettings: MQTTSettings = $state();
-	let mqttStatus: MQTTStatus = $state();
+	const defaultMQTTSettings: MQTTSettings = {
+		enabled: false,
+		uri: '',
+		username: '',
+		password: '',
+		client_id: '',
+		keep_alive: 60,
+		clean_session: true,
+		message_interval_ms: 0
+	};
 
-	let formField: any = $state();
+	// Per-field dirty tracking: f.current is the bindable form object, f.isDirty(key) drives the
+	// per-field marker, f.anyDirty rolls up to the card. uriDirty additionally catches the case
+	// where UriInput has an invalid intermediate edit that hasn't been written back to f.current.uri.
+	const f = createDirtyState<MQTTSettings>({ ...defaultMQTTSettings });
+	let uriDirty = $state(false);
+	let uriInput = $state<{ revert: () => void; commit: () => void }>();
+	let isSettingsDirty: boolean = $derived(f.anyDirty || uriDirty);
+	let settingsLoaded = $state(false);
+
+	let mqttStatus: MQTTStatus = $state({
+		enabled: false,
+		connected: false,
+		client_id: '',
+		last_error: ''
+	});
 
 	async function getMQTTStatus() {
 		try {
@@ -36,7 +62,9 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			mqttStatus = await response.json();
+			if (response.ok) {
+				mqttStatus = await response.json();
+			}
 		} catch (error) {
 			console.error('Error:', error);
 		}
@@ -52,11 +80,14 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			mqttSettings = await response.json();
+			if (response.ok) {
+				f.reset(await response.json());
+				settingsLoaded = true;
+			}
 		} catch (error) {
 			console.error('Error:', error);
 		}
-		return mqttSettings;
+		return f.current;
 	}
 
 	const interval = setInterval(async () => {
@@ -73,20 +104,18 @@
 
 	let uriError = $state(false);
 	let keepAliveError = $derived(
-		!!mqttSettings &&
-			(!Number.isFinite(Number(mqttSettings.keep_alive)) ||
-				Number(mqttSettings.keep_alive) < 1 ||
-				Number(mqttSettings.keep_alive) > 600)
+		!Number.isFinite(Number(f.current.keep_alive)) ||
+			Number(f.current.keep_alive) < 1 ||
+			Number(f.current.keep_alive) > 600
 	);
 	let rateLimitError = $derived(
-		!!mqttSettings &&
-			(!Number.isFinite(Number(mqttSettings.message_interval_ms)) ||
-				Number(mqttSettings.message_interval_ms) < 0 ||
-				Number(mqttSettings.message_interval_ms) > 1000)
+		!Number.isFinite(Number(f.current.message_interval_ms)) ||
+			Number(f.current.message_interval_ms) < 0 ||
+			Number(f.current.message_interval_ms) > 1000
 	);
 	let hasErrors = $derived(uriError || keepAliveError || rateLimitError);
 
-	async function postMQTTSettings(data: MQTTSettings) {
+	async function postMQTTSettings() {
 		try {
 			const response = await fetch('/rest/mqttSettings', {
 				method: 'POST',
@@ -94,13 +123,14 @@
 					Authorization: page.data.features.security ? 'Bearer ' + $user.bearer_token : 'Basic',
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(data)
+				body: JSON.stringify(f.current)
 			});
 			if (response.status == 200) {
 				notifications.success('MQTT settings updated.', 3000);
-				mqttSettings = await response.json();
+				f.reset(await response.json());
+				uriInput?.commit(); // self-contained field: re-baseline even if its value was unchanged
 			} else {
-				notifications.error('User not authorized.', 3000);
+				notifications.error('Updating MQTT settings failed.', 3000);
 			}
 		} catch (error) {
 			console.error('Error:', error);
@@ -110,26 +140,19 @@
 
 	function handleSubmitMQTT() {
 		if (!hasErrors) {
-			postMQTTSettings(mqttSettings);
+			postMQTTSettings();
 		}
-	}
-
-	function preventDefault(fn) {
-		return function (event) {
-			event.preventDefault();
-			fn.call(this, event);
-		};
 	}
 </script>
 
 <SettingsCard collapsible={false}>
 	{#snippet icon()}
-		<MQTT class="h-6 w-6" />
+		<IconMQTT class="h-6 w-6" />
 	{/snippet}
 	{#snippet title()}
 		<span>MQTT</span>
 	{/snippet}
-	<div class="w-full">
+	<div class="w-full overflow-x-auto">
 		{#await getMQTTStatus()}
 			<Spinner />
 		{:then nothing}
@@ -143,7 +166,7 @@
 							? 'bg-success'
 							: 'bg-error'}"
 					>
-						<MQTT
+						<IconMQTT
 							class="h-auto w-full scale-75 {mqttStatus.connected === true
 								? 'text-success-content'
 								: 'text-error-content'}"
@@ -179,126 +202,175 @@
 	</div>
 
 	{#if !page.data.features.security || $user.admin}
-		<Collapsible open={false} class="shadow-lg" icon={null} opened={() => {}} closed={() => {}}>
+		<Collapsible
+			open={false}
+			class="shadow-lg"
+			closed={getMQTTSettings}
+			isDirty={isSettingsDirty}
+			onRevert={() => {
+				f.revertAll();
+				uriInput?.revert();
+			}}
+		>
+			{#snippet icon()}
+				<IconSettings class="h-6 w-6" />
+			{/snippet}
 			{#snippet title()}
-				<span>Change MQTT Settings</span>
+				<span>General Settings</span>
 			{/snippet}
 
+			{#if !settingsLoaded}
+				<Spinner />
+			{:else}
 			<form
-				onsubmit={preventDefault(handleSubmitMQTT)}
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleSubmitMQTT();
+				}}
 				novalidate
-				bind:this={formField}
 				class="fieldset"
 			>
-				<div class="grid w-full grid-cols-1 content-center gap-x-4 gap-y-2 sm:grid-cols-2">
+				<div class="grid w-full grid-cols-1 content-center gap-x-4 gap-y-2 px-4 sm:grid-cols-2">
 					<!-- Enable -->
-					<label class="label inline-flex cursor-pointer content-end justify-start gap-4 text-base">
-						<input
-							type="checkbox"
-							bind:checked={mqttSettings.enabled}
-							class="checkbox checkbox-primary"
-						/>
-						Enable MQTT
-					</label>
-
+					<div class="flex items-center w-full">
+						<div class="self-stretch bg-red-300 transition-all duration-200 ease-out {f.isDirty('enabled') ? 'w-1 mr-2' : 'w-0'}"></div>
+						<label class="label cursor-pointer justify-start gap-2 items-center">
+							<input type="checkbox" class="toggle toggle-primary shrink-0" bind:checked={f.current.enabled} />
+							<div class="flex items-center gap-2">
+								<span>Enable MQTT</span>
+								<DirtyMarker dirty={f.isDirty('enabled')} onrevert={() => f.revert('enabled')} />
+							</div>
+						</label>
+					</div>
 					<div class="hidden sm:block"></div>
-					<!-- URI -->
+					<!-- URI (self-contained: own dirty line + in-field revert, like a simple field) -->
 					<div class="sm:col-span-2">
 						<UriInput
-							bind:value={mqttSettings.uri}
+							bind:this={uriInput}
+							bind:value={f.current.uri}
 							bind:error={uriError}
+							bind:dirty={uriDirty}
 							protocols={mqttProtocols}
 							id="mqtt-uri"
 						/>
 					</div>
 					<!-- Username -->
 					<div>
-						<label class="label" for="user">Username </label>
-						<input type="text" class="input w-full" bind:value={mqttSettings.username} id="user" />
+						<label class="label" for="user">Username</label>
+						<DirtyField dirty={f.isDirty('username')} onrevert={() => f.revert('username')}>
+							<input
+								type="text"
+								class="input w-full pr-10"
+								bind:value={f.current.username}
+								id="user"
+							/>
+						</DirtyField>
 					</div>
 					<!-- Password -->
 					<div>
-						<label class="label" for="pwd">Password </label>
-						<InputPassword bind:value={mqttSettings.password} id="pwd" />
+						<label class="label" for="pwd">Password</label>
+						<InputPassword
+							bind:value={f.current.password}
+							id="pwd"
+							baseline={f.baseline.password}
+							onrevert={() => f.revert('password')}
+						/>
 					</div>
 					<!-- Client ID -->
 					<div>
-						<label class="label" for="clientid">Client ID </label>
-						<input
-							type="text"
-							class="input w-full"
-							bind:value={mqttSettings.client_id}
-							id="clientid"
-						/>
+						<label class="label" for="clientid">Client ID</label>
+						<DirtyField dirty={f.isDirty('client_id')} onrevert={() => f.revert('client_id')}>
+							<input
+								type="text"
+								class="input w-full pr-10"
+								bind:value={f.current.client_id}
+								id="clientid"
+							/>
+						</DirtyField>
 					</div>
 					<!-- Keep Alive -->
 					<div>
-						<label class="label" for="keepalive">Keep Alive </label>
+						<label class="label" for="keepalive">Keep Alive</label>
+						<div class="relative">
+						{#if f.isDirty('keep_alive')}
+							<div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-1 rounded-l-[var(--radius-field)] bg-red-300"></div>
+						{/if}
 						<label
 							for="keepalive"
-							class="input w-full invalid:border-error invalid:border-2 {keepAliveError
-								? 'border-error border-2'
-								: ''}"
+							class="input w-full {keepAliveError ? 'border-error border-2' : ''}"
 						>
 							<input
 								type="number"
 								min="1"
 								max="600"
 								class=""
-								bind:value={mqttSettings.keep_alive}
+								bind:value={f.current.keep_alive}
 								id="keepalive"
 								required
 							/>
 							<span class="label">Seconds</span>
+							<DirtyMarker dirty={f.isDirty('keep_alive')} onrevert={() => f.revert('keep_alive')} />
 						</label>
-						<label for="keepalive" class=""
-							><span class=" text-error {keepAliveError ? '' : 'hidden'}"
-								>Must be between 1 and 600 seconds</span
-							></label
-						>
+					</div>
+						{#if keepAliveError}
+							<div transition:slide|local={{ duration: 300, easing: cubicOut }}>
+								<span class="text-error text-xs">Must be between 1 and 600 seconds</span>
+							</div>
+						{/if}
 					</div>
 					<!-- Rate Limit -->
 					<div>
 						<label class="label" for="ratelimit">Publish Message Interval</label>
+						<div class="relative">
+						{#if f.isDirty('message_interval_ms')}
+							<div class="pointer-events-none absolute inset-y-0 left-0 z-10 w-1 rounded-l-[var(--radius-field)] bg-red-300"></div>
+						{/if}
 						<label
 							for="ratelimit"
-							class="input w-full invalid:border-error invalid:border-2 {rateLimitError
-								? 'border-error border-2'
-								: ''}"
+							class="input w-full {rateLimitError ? 'border-error border-2' : ''}"
 						>
 							<input
 								type="number"
 								min="0"
 								max="1000"
 								class=""
-								bind:value={mqttSettings.message_interval_ms}
+								bind:value={f.current.message_interval_ms}
 								id="ratelimit"
 								required
 							/>
 							<span class="label">Milliseconds</span>
+							<DirtyMarker
+								dirty={f.isDirty('message_interval_ms')}
+								onrevert={() => f.revert('message_interval_ms')}
+							/>
 						</label>
-						<label for="ratelimit" class=""
-							><span class=" text-error {rateLimitError ? '' : 'hidden'}"
-								>Must be between 0 and 1000 milliseconds</span
-							></label
-						>
+					</div>
+						{#if rateLimitError}
+							<div transition:slide|local={{ duration: 300, easing: cubicOut }}>
+								<span class="text-error text-xs">Must be between 0 and 1000 milliseconds</span>
+							</div>
+						{/if}
 					</div>
 					<!-- Clean Session -->
-					<label
-						class="label inline-flex cursor-pointer content-end justify-start gap-4 text-base mt-2 sm:mt-4"
-					>
-						<input
-							type="checkbox"
-							bind:checked={mqttSettings.clean_session}
-							class="checkbox checkbox-primary"
-						/>Clean Session?
-					</label>
+					<div class="flex items-center w-full mt-2 sm:mt-4">
+						<div class="self-stretch bg-red-300 transition-all duration-200 ease-out {f.isDirty('clean_session') ? 'w-1 mr-2' : 'w-0'}"></div>
+						<label class="label cursor-pointer justify-start gap-2 items-center">
+							<input type="checkbox" class="toggle toggle-primary shrink-0" bind:checked={f.current.clean_session} />
+							<div class="flex items-center gap-2">
+								<span>Clean Session?</span>
+								<DirtyMarker dirty={f.isDirty('clean_session')} onrevert={() => f.revert('clean_session')} />
+							</div>
+						</label>
+					</div>
 				</div>
 				<div class="divider mb-2 mt-0"></div>
-				<div class="flex flex-wrap justify-end gap-2">
-					<button class="btn btn-primary" type="submit" disabled={hasErrors}>Apply Settings</button>
+				<div class="mx-4 flex flex-wrap justify-end gap-2">
+					<button class="btn btn-primary" type="submit" disabled={hasErrors || !isSettingsDirty}
+						>Apply Settings</button
+					>
 				</div>
 			</form>
+			{/if}
 		</Collapsible>
 
 		<HAConfig />
