@@ -256,6 +256,7 @@ void HAService::publishAll()
     for (auto &callback : _publishCallbacks)
     {
         callback();
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     if (_mainDevice)
@@ -268,6 +269,7 @@ void HAService::publishAll()
     {
         if (dev)
             dev->publishAll();
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
