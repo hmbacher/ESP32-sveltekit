@@ -7,6 +7,8 @@
 	import DirtyField from '$lib/components/DirtyField.svelte';
 	import DirtyMarker from '$lib/components/DirtyMarker.svelte';
 	import { createDirtyState } from '$lib/utils/dirtyState.svelte';
+	import { isIPv4, hasLength, inRange } from '$lib/utils/validators';
+	import FieldError from '$lib/components/FieldError.svelte';
 	import { user } from '$lib/stores/user';
 	import { page } from '$app/state';
 	import { notifications } from '$lib/components/toasts/notifications';
@@ -90,14 +92,15 @@
 		{ bg_color: 'bg-warning', text_color: 'text-warning-content', description: 'Lingering' }
 	];
 
-	let formErrors = $state({
-		ssid: false,
-		channel: false,
-		max_clients: false,
-		local_ip: false,
-		gateway_ip: false,
-		subnet_mask: false
-	});
+	const ssidError = $derived(!hasLength(f.current.ssid, 3, 32));
+	const channelError = $derived(!inRange(Number(f.current.channel), 1, 13));
+	const maxClientsError = $derived(!inRange(Number(f.current.max_clients), 1, 8));
+	const localIPError = $derived(!isIPv4(f.current.local_ip));
+	const gatewayIPError = $derived(!isIPv4(f.current.gateway_ip));
+	const subnetMaskError = $derived(!isIPv4(f.current.subnet_mask));
+	const hasErrors = $derived(
+		ssidError || channelError || maxClientsError || localIPError || gatewayIPError || subnetMaskError
+	);
 
 	async function postAPSettings() {
 		try {
@@ -121,56 +124,7 @@
 	}
 
 	function handleSubmitAP() {
-		let valid = true;
-
-		if (f.current.ssid.length < 3 || f.current.ssid.length > 32) {
-			valid = false;
-			formErrors.ssid = true;
-		} else {
-			formErrors.ssid = false;
-		}
-
-		let channel = Number(f.current.channel);
-		if (1 > channel || channel > 13) {
-			valid = false;
-			formErrors.channel = true;
-		} else {
-			formErrors.channel = false;
-		}
-
-		let maxClients = Number(f.current.max_clients);
-		if (1 > maxClients || maxClients > 8) {
-			valid = false;
-			formErrors.max_clients = true;
-		} else {
-			formErrors.max_clients = false;
-		}
-
-		const regexExp =
-			/\b(?:(?:2(?:[0-4][0-9]|5[0-5])|[0-1]?[0-9]?[0-9])\.){3}(?:(?:2([0-4][0-9]|5[0-5])|[0-1]?[0-9]?[0-9]))\b/;
-
-		if (!regexExp.test(f.current.gateway_ip)) {
-			valid = false;
-			formErrors.gateway_ip = true;
-		} else {
-			formErrors.gateway_ip = false;
-		}
-
-		if (!regexExp.test(f.current.subnet_mask)) {
-			valid = false;
-			formErrors.subnet_mask = true;
-		} else {
-			formErrors.subnet_mask = false;
-		}
-
-		if (!regexExp.test(f.current.local_ip)) {
-			valid = false;
-			formErrors.local_ip = true;
-		} else {
-			formErrors.local_ip = false;
-		}
-
-		if (valid) {
+		if (!hasErrors) {
 			postAPSettings();
 		}
 	}
@@ -296,7 +250,7 @@
 							<DirtyField dirty={f.isDirty('ssid')} onrevert={() => f.revert('ssid')}>
 								<input
 									type="text"
-									class="input w-full pr-10 {formErrors.ssid ? 'border-error border-2' : ''}"
+									class="input w-full pr-10 {ssidError ? 'border-error border-2' : ''}"
 									bind:value={f.current.ssid}
 									id="ssid"
 									min="2"
@@ -304,9 +258,7 @@
 									required
 								/>
 							</DirtyField>
-							{#if formErrors.ssid}
-								<p class="text-error text-xs">SSID must be between 2 and 32 characters long</p>
-							{/if}
+							<FieldError show={ssidError} message="SSID must be between 2 and 32 characters long" />
 						</div>
 
 						<!-- Password -->
@@ -328,15 +280,13 @@
 									type="number"
 									min="1"
 									max="13"
-									class="input w-full pr-10 {formErrors.channel ? 'border-error border-2' : ''}"
+									class="input w-full pr-10 {channelError ? 'border-error border-2' : ''}"
 									bind:value={f.current.channel}
 									id="channel"
 									required
 								/>
 							</DirtyField>
-							{#if formErrors.channel}
-								<p class="text-error text-xs">Must be channel 1 to 13</p>
-							{/if}
+							<FieldError show={channelError} message="Must be channel 1 to 13" />
 						</div>
 
 						<!-- Max clients -->
@@ -347,15 +297,13 @@
 									type="number"
 									min="1"
 									max="8"
-									class="input w-full pr-10 {formErrors.max_clients ? 'border-error border-2' : ''}"
+									class="input w-full pr-10 {maxClientsError ? 'border-error border-2' : ''}"
 									bind:value={f.current.max_clients}
 									id="clients"
 									required
 								/>
 							</DirtyField>
-							{#if formErrors.max_clients}
-								<p class="text-error text-xs">Maximum 8 clients allowed</p>
-							{/if}
+							<FieldError show={maxClientsError} message="Maximum 8 clients allowed" />
 						</div>
 
 						<!-- Local IP -->
@@ -364,7 +312,7 @@
 							<DirtyField dirty={f.isDirty('local_ip')} onrevert={() => f.revert('local_ip')}>
 								<input
 									type="text"
-									class="input w-full pr-10 {formErrors.local_ip ? 'border-error border-2' : ''}"
+									class="input w-full pr-10 {localIPError ? 'border-error border-2' : ''}"
 									minlength="7"
 									maxlength="15"
 									size="15"
@@ -373,9 +321,7 @@
 									required
 								/>
 							</DirtyField>
-							{#if formErrors.local_ip}
-								<p class="text-error text-xs">Must be a valid IPv4 address</p>
-							{/if}
+							<FieldError show={localIPError} message="Must be a valid IPv4 address" />
 						</div>
 
 						<!-- Gateway IP -->
@@ -387,7 +333,7 @@
 							>
 								<input
 									type="text"
-									class="input w-full pr-10 {formErrors.gateway_ip ? 'border-error border-2' : ''}"
+									class="input w-full pr-10 {gatewayIPError ? 'border-error border-2' : ''}"
 									minlength="7"
 									maxlength="15"
 									size="15"
@@ -396,9 +342,7 @@
 									required
 								/>
 							</DirtyField>
-							{#if formErrors.gateway_ip}
-								<p class="text-error text-xs">Must be a valid IPv4 address</p>
-							{/if}
+							<FieldError show={gatewayIPError} message="Must be a valid IPv4 address" />
 						</div>
 
 						<!-- Subnet mask -->
@@ -410,7 +354,7 @@
 							>
 								<input
 									type="text"
-									class="input w-full pr-10 {formErrors.subnet_mask ? 'border-error border-2' : ''}"
+									class="input w-full pr-10 {subnetMaskError ? 'border-error border-2' : ''}"
 									minlength="7"
 									maxlength="15"
 									size="15"
@@ -419,9 +363,7 @@
 									required
 								/>
 							</DirtyField>
-							{#if formErrors.subnet_mask}
-								<p class="text-error text-xs">Must be a valid IPv4 address</p>
-							{/if}
+							<FieldError show={subnetMaskError} message="Must be a valid IPv4 address" />
 						</div>
 
 						<!-- Hide SSID toggle -->
@@ -444,7 +386,7 @@
 						</div>
 
 						<div class="place-self-end">
-							<button class="btn btn-primary" type="submit" disabled={!f.anyDirty}>
+							<button class="btn btn-primary" type="submit" disabled={!f.anyDirty || hasErrors}>
 								Apply Settings
 							</button>
 						</div>
