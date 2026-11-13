@@ -442,8 +442,10 @@ Some firmware acts as a **gateway** — it bridges several physical devices (rem
 The framework supports this via `HAService::addSubDevice()` and `HAService::removeSubDevice()`. Each sub-device has its own `HADeviceIdentity` and its own `HADevice`, and its MQTT topics are nested under the main device's base topic:
 
 ```
-{discoveryPrefix}{namespace}/{mainDeviceId}/{subDeviceId}/{entityId}/state
+{discoveryPrefix}{mainDeviceId}/{subDeviceId}/{objectId}/state
 ```
+
+The main device ID is `slugify(APP_NAME)-{uniqueId}`. It is derived from the compile-time firmware name, never from the user-editable device name — the device name only sets the label shown in Home Assistant, so renaming the device never moves topics or re-registers it in HA's device registry.
 
 ### HADeviceIdentity fields for sub-devices
 
@@ -455,7 +457,7 @@ The framework supports this via `HAService::addSubDevice()` and `HAService::remo
 | `serialNumber` | Optional — physical hardware serial number, shown in HA device info panel |
 | `suggestedArea` | Optional — HA room/area hint (e.g., `"Living Room"`) |
 | `viaDevice` | Set automatically by `addSubDevice()` to the main device's ID (for HA device graph) |
-| `topicNamespace` | Set automatically by `addSubDevice()` to `{mainNamespace}/{mainDeviceId}` — scopes all MQTT topics under the gateway instance |
+| `topicNamespace` | Set automatically by `addSubDevice()` to the main device's ID — scopes all state/command topics under the gateway instance |
 
 ### Adding a sub-device
 
@@ -511,21 +513,23 @@ void GatewayService::onNodeLost(const String &nodeId)
 
 ### MQTT topic layout (example)
 
-State / command topics (unchanged):
+With `APP_NAME` = `my-gateway` and the main device ID `my-gateway-aabbcc`, and a sub-device ID that is prefixed with the main device ID as in the example above (`my-gateway-aabbcc-node-01`):
+
+State / command topics (nested under the main device):
 ```
-homeassistant/my-gateway/my-gateway-aabbcc/node-01/alarm/state
-homeassistant/my-gateway/my-gateway-aabbcc/node-01/reset/set
+homeassistant/my-gateway-aabbcc/my-gateway-aabbcc-node-01/alarm/state
+homeassistant/my-gateway-aabbcc/my-gateway-aabbcc-node-01/reset/set
 ```
 
-Discovery config topics (scoped under the gateway):
+Discovery config topics (single-level `node_id`, as the HA MQTT discovery spec requires):
 ```
-homeassistant/binary_sensor/my-gateway/my-gateway-aabbcc/node-01/alarm/config
-homeassistant/button/my-gateway/my-gateway-aabbcc/node-01/reset/config
+homeassistant/binary_sensor/my-gateway-aabbcc-node-01/alarm/config
+homeassistant/button/my-gateway-aabbcc-node-01/reset/config
 ```
 
-The `{topicNamespace}/{id}` segment in the config topic path — `my-gateway/my-gateway-aabbcc/node-01` — mirrors the structure of the state/command topic path. This scoping guarantees that entity config topics are globally unique per gateway instance: if a second gateway with a different MAC publishes the same logical node ID (`node-01`), its discovery configs land on completely separate MQTT topics and HA registers them as separate devices rather than merging them.
+HA only subscribes to discovery topics with a single `node_id` segment, so config topics cannot be nested under the gateway. Global uniqueness therefore comes from the sub-device ID itself: prefix it with the main device ID (as `onNodeDiscovered()` above does) whenever two gateways could bridge nodes with the same logical ID.
 
-> **Breaking change when upgrading:** Config topic paths changed from `{prefix}{component}/{id}/{objectId}/config` to `{prefix}{component}/{topicNamespace}/{id}/{objectId}/config`. Retained discovery messages at the old topic paths will remain in the MQTT broker until they expire or are cleared manually. After first boot with the new firmware, delete the stale retained messages on the old paths (or use an MQTT client to send an empty retained payload to each) and remove the orphaned devices from HA.
+> **Upgrading from the display-name-derived identity:** earlier versions derived both the topic namespace and the main device ID from the user-editable device name (`{prefix}{slug(name)}/{slug(name)}-{uniqueId}/…`). On the first MQTT connect after the upgrade, every config and state publish first sends an empty retained payload to its old counterpart, so Home Assistant retires the old entities before the new ones arrive and the broker's old retained tree drains itself. Sub-device configs keep their topics and `unique_id`, so HA updates them in place. Retained messages for entities the firmware no longer publishes at all are not covered and have to be cleared manually.
 
 ---
 

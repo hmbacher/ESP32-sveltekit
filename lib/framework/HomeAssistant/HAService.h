@@ -107,6 +107,11 @@ public:
 
     /**
      * @brief Set the device display name for Home Assistant
+     *
+     * Purely cosmetic — this feeds `device.name` in the discovery payload only.
+     * MQTT topics and the device identity are derived from APP_NAME, so
+     * renaming is safe and never moves topics or re-registers the device.
+     *
      * @param name Device name (e.g., "Genius Gateway")
      */
     void setDeviceName(const String &name);
@@ -155,8 +160,8 @@ public:
      * @brief Get the base topic for state/command topics
      *
      * Used as MQTT "~" abbreviation base in discovery configs.
-     * Format: {discoveryPrefix}{topicNamespace}/{deviceId}
-     * Example: "homeassistant/genius-gateway/genius-gateway-aabbcc"
+     * Format: {discoveryPrefix}{deviceId}
+     * Example: "homeassistant/genius-gateway-aabbcc"
      */
     String getBaseTopic() const;
 
@@ -190,6 +195,25 @@ public:
      * @return true if publish succeeded
      */
     bool publishConfig(const String &component, const String &objectId, JsonDocument &config);
+
+    /**
+     * @brief Clear the legacy discovery config topic for an entity.
+     *
+     * The discovery node_id used to be derived from the user-editable display
+     * name, so moving to the APP_NAME-based identity moves every main-device
+     * config topic. Called right before a config publish, this sends an empty
+     * retained payload to the topic the entity used to live at, so Home
+     * Assistant drops the stale duplicate instead of showing it as an
+     * unavailable ghost.
+     *
+     * No-op for sub-devices (their node_id never contained the display name)
+     * and once the first full publishAll() after boot has completed.
+     *
+     * @param component HA component type the config was published under
+     * @param objectId  Entity object ID
+     * @param deviceId  node_id the config was published under
+     */
+    void purgeLegacyConfig(const String &component, const String &objectId, const String &deviceId);
 
     /**
      * @brief Publish to a specific MQTT topic
@@ -281,8 +305,8 @@ public:
      * The following identity fields are set automatically if not already
      * filled by the caller:
      *   - viaDevice     → set to the main device's ID
-     *   - topicNamespace → set so the base topic nests under the main device:
-     *                      {mainNamespace}/{mainDeviceId}
+     *   - topicNamespace → set to the main device's ID, so the base topic nests
+     *                      under it: {prefix}{mainDeviceId}/{subDeviceId}
      *
      * @param device  HADevice to add (ownership transferred)
      * @return Raw pointer valid for the lifetime of this HAService (or until
@@ -309,9 +333,15 @@ private:
     String _deviceName;
     String _manufacturer;
     String _model;
-    String _topicNamespace;
     String _discoveryPrefix;
     bool _enabled;
+
+    // Legacy (display-name-derived) topic identity, remembered only while it
+    // differs from the current one. Empty means "nothing stale to clear".
+    // See _purgeLegacyState().
+    String _legacyDeviceId;
+    String _legacyBaseTopic;
+    bool _legacyPurgeArmed{true};
 
     // Publish / unpublish callbacks
     std::vector<PublishAllCallback, PsramAllocator<PublishAllCallback>> _publishCallbacks;
@@ -332,17 +362,32 @@ private:
     void _publishTask();
 
     /**
-     * @brief Generate the device ID from APP_NAME and MAC address
+     * @brief Recompute the legacy topic identity from the display name.
      *
-     * Creates a slug from the device name and appends the unique ID:
-     * "My Device Name" → "my-device-name-aabbcc"
+     * Previously both the namespace and the device ID were slugs of the
+     * user-editable display name:
+     *   namespace = slugify(deviceName)
+     *   deviceId  = slugify(deviceName) + "-" + uniqueId
+     *   baseTopic = {prefix}{namespace}/{deviceId}
+     *
+     * The display name still persists across the upgrade, so the old topics
+     * are exactly reproducible — which is what lets the first publish after
+     * the upgrade clean them up. Each of the two values is stored only if it
+     * actually differs from its current counterpart.
      */
-    void _generateDeviceId();
+    void _updateLegacyTopicIdentity();
 
     /**
-     * @brief Generate the topic namespace from device name
+     * @brief Clear the legacy counterpart of a state/command topic.
      *
-     * Creates a URL-safe slug: "My Device Name" → "my-device-name"
+     * Called for every publish that targets the current base topic while the
+     * purge is armed; rewrites the topic onto the old base and sends an empty
+     * retained payload there so the stale retained tree drains itself.
+     */
+    void _purgeLegacyState(const String &topic);
+
+    /**
+     * @brief Create a URL-safe slug: "My Device Name" → "my-device-name"
      */
     static String _slugify(const String &name);
 };
