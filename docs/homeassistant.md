@@ -511,6 +511,29 @@ void GatewayService::onNodeLost(const String &nodeId)
 
 > **Destructor note:** The `HADevice` destructor does **not** call `unpublishAll()` automatically. On firmware restart HA should keep the retained config so the device remains visible. Only call `removeSubDevice()` (or `unpublishAll()` directly) when the device should be explicitly removed from HA — e.g., when a node is decommissioned.
 
+### Explicit entity IDs
+
+Home Assistant generates an entity ID when it first registers an entity and keeps it from then on. To choose the IDs yourself, give the `HADevice` a prefix:
+
+```cpp
+dev->setEntityIdPrefix("Living Room"); // stored as "living_room"
+```
+
+Every discovery config of the device then carries `default_entity_id = <component>.<prefix>_<slug(entity name)>`, for example `binary_sensor.living_room_motion`. Entities of a grouped publisher that is owned by the device are included. An empty prefix switches this off again and leaves the entity IDs to Home Assistant.
+
+Home Assistant only honours `default_entity_id` when it creates an entity. To move existing entities to a new prefix, remove them, give Home Assistant a moment and publish them again:
+
+```cpp
+dev->setEntityIdPrefix(newLabel);
+dev->unpublishAll(1);                    // QoS 1: the removal must not get lost
+vTaskDelay(pdMS_TO_TICKS(3000));         // never while holding a lock other tasks need
+const uint32_t failures = dev->configPublishFailures();
+dev->publishAll();
+const bool sent = dev->configPublishFailures() == failures;
+```
+
+MQTT discovery has no acknowledgement, so `sent` is all a device can know. `HAUtils::slugify()` builds the slugs: entity-ID slugs follow Home Assistant (`Küche` becomes `kuche`), while `slugify(text, '-', false)` yields the topic-style slug the device ID is built from.
+
 ### MQTT topic layout (example)
 
 With `APP_NAME` = `my-gateway` and the main device ID `my-gateway-aabbcc`, and a sub-device ID that is prefixed with the main device ID as in the example above (`my-gateway-aabbcc-node-01`):
