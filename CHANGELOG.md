@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Add originID to StateUpdateResult update [#110](https://github.com/theelims/ESP32-sveltekit/pull/110)
 - Ethernet Support [#113](https://github.com/theelims/ESP32-sveltekit/pull/113)
 - Added default factory values for `FACTORY_HA_MANUFACTURER` ("ESP32 SvelteKit Project") and `FACTORY_HA_MODEL` ("ESP32 SvelteKit") in `factory_settings.ini`.
+- `HttpEndpoint` takes an optional second authentication predicate for GET, so a state can be readable by more users than may change it.
 
 ### Changed
 

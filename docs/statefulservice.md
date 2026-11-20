@@ -196,6 +196,14 @@ class LightStateService : public StatefulService<LightState> {
 
 Endpoint security is provided by authentication predicates which are [documented below](#security-features). The SecurityManager and authentication predicate must be provided, even if no secure endpoint is required. The placeholder project shows how endpoints can be secured.
 
+The predicate applies to both handlers. To let more users read the state than change it, pass a second predicate for GET:
+
+```cpp
+_httpEndpoint(LightState::read, LightState::update, this, server, "/rest/lightState", sveltekit->getSecurityManager(),
+              AuthenticationPredicates::IS_ADMIN,          // POST
+              AuthenticationPredicates::IS_AUTHENTICATED)  // GET
+```
+
 To register the HTTP endpoints with the web server the function `_httpEndpoint.begin()` must be called in the custom StatefulService Class' own `void begin()` function.
 
 ### File System Persistence
