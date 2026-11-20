@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Integrated Home Assistant configuration into the MQTT settings card as a nested collapsible section, removing the standalone HA settings card from the page.
 - Home Assistant settings now track unsaved changes (dirty state indicator) and the Apply button is disabled until a change is made.
 - Home Assistant settings enable toggle changed from checkbox to toggle switch for visual consistency.
+- Applying the Home Assistant settings no longer republishes all entities inside the HTTP request: the publish task does it (`HAService::requestPublishAll()`), and the Apply button shows a spinner while the request is under way.
 - Device Name placeholder in Home Assistant settings now dynamically shows the active firmware name (e.g. "empty falls back to firmware name: ESP32 SvelteKit").
 - Improved icon vertical alignment in `SettingsCard` and `Collapsible` components so the icon aligns with the first line even on wrapped titles.
 - GitHub Firmware Manager table header is now responsive — the date column collapses on small screens and the install button column is always visible.

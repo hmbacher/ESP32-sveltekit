@@ -82,7 +82,7 @@ void HAService::_publishTask()
     while (true)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        ESP_LOGI(TAG, "MQTT connected — invoking publishAll()");
+        ESP_LOGI(TAG, "Publish requested (MQTT connect or settings change) - invoking publishAll()");
         publishAll();
     }
 }
@@ -336,14 +336,25 @@ void HAService::publishAll()
     ESP_LOGI(TAG, "Publishing all HA entities (%d callbacks, main+%d sub-devices)",
              (int)callbackCount, (int)subDevices.size());
 
+    // The integration can be switched off while this runs (the caller holds the registry
+    // lock around unpublishAll() and setEnabled(false)). Checking under the same lock
+    // makes this run stop there: what it sent before is removed by that unpublishAll(),
+    // and nothing is sent after it.
     for (size_t i = 0; i < callbackCount; i++)
     {
-        _invokeCallback(_publishCallbacks, i);
+        {
+            Lock guard(this);
+            if (!_enabled)
+                return;
+            _invokeCallback(_publishCallbacks, i);
+        }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     {
         Lock guard(this);
+        if (!_enabled)
+            return;
         if (_mainDevice)
         {
             _syncMainDeviceIdentity();
@@ -355,6 +366,8 @@ void HAService::publishAll()
     {
         {
             Lock guard(this);
+            if (!_enabled)
+                return;
             // Publish the device only if it is still registered - it may have been
             // removed, and destroyed, since the list was taken. The pointer is merely
             // compared here, never dereferenced.
@@ -378,6 +391,14 @@ void HAService::publishAll()
         ESP_LOGI(TAG, "Legacy HA topic purge complete");
         _legacyPurgeArmed = false;
     }
+}
+
+void HAService::requestPublishAll()
+{
+    if (_publishTaskHandle != nullptr)
+        xTaskNotifyGive(_publishTaskHandle);
+    else
+        publishAll();
 }
 
 void HAService::unpublishAll()

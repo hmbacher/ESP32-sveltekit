@@ -527,6 +527,8 @@ endTransaction();
 
 The order matters. `publishAll()` holds the registry lock while it calls your state readers, which usually take your state mutex. A task that enters its transaction first and then calls `removeSubDevice()` can deadlock with it. Do not take the lock in an MQTT event callback either, because `publishAll()` publishes synchronously while holding it.
 
+A full publish takes seconds with many entities. Code that must not be held up that long - an HTTP request handler, for example - calls `requestPublishAll()` instead of `publishAll()`: it returns at once and the publish task does the work. `HASettingsService` does this when the settings are applied.
+
 ### Explicit entity IDs
 
 Home Assistant generates an entity ID when it first registers an entity and keeps it from then on. To choose the IDs yourself, give the `HADevice` a prefix:
