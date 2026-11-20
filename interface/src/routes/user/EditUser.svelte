@@ -54,11 +54,11 @@
 {#if isOpen}
 	<div
 		role="dialog"
-		class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center overflow-y-auto"
+		class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4"
 		transition:fly={{ y: 50 }}
 	>
 		<div
-			class="rounded-box bg-base-100 shadow-secondary/30 pointer-events-auto flex min-w-fit max-w-md flex-col justify-between p-4 shadow-lg md:w-md"
+			class="rounded-box bg-base-100 shadow-secondary/30 pointer-events-auto flex max-h-full min-w-fit max-w-md flex-col justify-between overflow-y-auto overscroll-contain p-4 shadow-lg *:shrink-0 md:w-md"
 		>
 			<h2 class="text-base-content flex items-center gap-2 text-start text-2xl font-bold">
 				{#if TitleIcon}<TitleIcon class="text-primary h-7 w-7 flex-shrink-0" />{/if}{title}
