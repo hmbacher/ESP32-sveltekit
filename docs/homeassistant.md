@@ -511,6 +511,22 @@ void GatewayService::onNodeLost(const String &nodeId)
 
 > **Destructor note:** The `HADevice` destructor does **not** call `unpublishAll()` automatically. On firmware restart HA should keep the retained config so the device remains visible. Only call `removeSubDevice()` (or `unpublishAll()` directly) when the device should be explicitly removed from HA — e.g., when a node is decommissioned.
 
+### Thread safety
+
+`HAService::publishAll()` runs in its own task after every MQTT connect. `addSubDevice()` and `removeSubDevice()` may be called from any other task at the same time: a registry lock inside `HAService` serialises them with the publish task, and a sub-device is never destroyed while it is being published.
+
+Take the lock yourself when you change a registered device in place, and take it **before** the mutex of your own state:
+
+```cpp
+HAService::Lock haLock(_haService);   // 1. registry lock
+beginTransaction();                    // 2. your StatefulService mutex
+dev->identity().suggestedArea = newArea;
+dev->publishAll();
+endTransaction();
+```
+
+The order matters. `publishAll()` holds the registry lock while it calls your state readers, which usually take your state mutex. A task that enters its transaction first and then calls `removeSubDevice()` can deadlock with it. Do not take the lock in an MQTT event callback either, because `publishAll()` publishes synchronously while holding it.
+
 ### Explicit entity IDs
 
 Home Assistant generates an entity ID when it first registers an entity and keeps it from then on. To choose the IDs yourself, give the `HADevice` a prefix:
