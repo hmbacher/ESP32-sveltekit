@@ -251,7 +251,6 @@
 		<Collapsible
 			open={false}
 			class="shadow-lg"
-			icon={null}
 			opened={() => {}}
 			closed={() => {}}
 			isDirty={f.anyDirty}

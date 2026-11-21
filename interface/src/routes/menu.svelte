@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Component } from 'svelte';
 	import logo from '$lib/assets/logo.png';
 	import Github from '~icons/tabler/brand-github';
 	import Discord from '~icons/tabler/brand-discord';
@@ -30,7 +31,7 @@
 
 	type menuItem = {
 		title: string;
-		icon: ConstructorOfATypedSvelteComponent;
+		icon: Component<{ class?: string }>;
 		href?: string;
 		feature: boolean;
 		active?: boolean;
@@ -39,7 +40,7 @@
 
 	type subMenuItem = {
 		title: string;
-		icon: ConstructorOfATypedSvelteComponent;
+		icon: Component<{ class?: string }>;
 		href: string;
 		feature: boolean;
 		active: boolean;

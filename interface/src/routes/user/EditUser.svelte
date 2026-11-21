@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { modals } from 'svelte-modals';
+	import type { ModalProps } from 'svelte-modals';
 	import { fly } from 'svelte/transition';
 	import InputPassword from '$lib/components/InputPassword.svelte';
 	import FieldError from '$lib/components/FieldError.svelte';
@@ -10,8 +11,7 @@
 
 	// provided by <Modals />
 
-	interface Props {
-		isOpen: boolean;
+	interface Props extends ModalProps {
 		title: string;
 		onSaveUser: any;
 		titleIcon?: any;
