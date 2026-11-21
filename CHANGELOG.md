@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Ethernet Support [#113](https://github.com/theelims/ESP32-sveltekit/pull/113)
 - Added default factory values for `FACTORY_HA_MANUFACTURER` ("ESP32 SvelteKit Project") and `FACTORY_HA_MODEL` ("ESP32 SvelteKit") in `factory_settings.ini`.
 - `HttpEndpoint` takes an optional second authentication predicate for GET, so a state can be readable by more users than may change it.
+- Event Socket: a client that does not take an event within 1 s (`EVENT_SOCKET_SEND_TIMEOUT_MS`) is disconnected instead of holding up the emitting task for the HTTP server's send timeout on every event. Subscription lists are now changed under the mutex `emitEvent()` holds.
 
 ### Changed
 

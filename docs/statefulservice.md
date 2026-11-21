@@ -346,6 +346,8 @@ To subscribe the client has to send the following message (as MessagePack):
 
 The Event Socket provides an `emitEvent()` function to push data to all subscribed clients. This is used by various esp32sveltekit classes to push real time data to the client. First an event must be registered with the Event Socket by calling `_socket.registerEvent("CustomEvent");`. Only then clients may subscribe to this custom event and you're entitled to emit event data:
 
+`emitEvent()` sends from the task that calls it, one client after the other. A client that does not take a frame within `EVENT_SOCKET_SEND_TIMEOUT_MS` (1 s by default) - a suspended browser tab, for example - is disconnected and loses its subscriptions; browsers reconnect and subscribe again by themselves. A call can therefore take up to that time per unresponsive client, once. Keep this in mind when you emit from a task that must not stand still, and hand the emit to another task if needed.
+
 ```cpp
 void emitEvent(String event, JsonObject &jsonObject, const char *originId = "", bool onlyToSameOrigin = false);
 ```
