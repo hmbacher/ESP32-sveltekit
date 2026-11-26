@@ -56,7 +56,7 @@ graph TD
 | MQTT broker credentials & connection lifecycle | `MqttSettingsService` |
 | Device identity JSON (name, manufacturer, model, MAC …) | `HADevice` / `HADeviceIdentity` |
 | HA settings UI (enabled toggle, prefix, identity fields) | `HASettingsService` |
-| Built-in status / heap / temperature / restart entities | `HADiagnosticService` |
+| Built-in status / heap / temperature / reset reason / restart entities | `HADiagnosticService` |
 | OTA update progress entity | `HAUpdateService` |
 
 **Origin ID:** All HA-originated `StatefulService` updates carry the origin id `"ha"` (constant `HA_ORIGIN_ID`). Downstream update handlers can use this to distinguish HA commands from local, HTTP, or Event Socket updates.
@@ -582,19 +582,20 @@ All three services are instantiated and started automatically by `ESP32SvelteKit
 
 `lib/framework/HomeAssistant/HADiagnosticService.h`
 
-Provides four diagnostic entities that work on every ESP32 board without any application code:
+Provides five diagnostic entities that work on every ESP32 board without any application code:
 
 | Entity | HA Component | HA Category | Value / behaviour |
 |---|---|---|---|
 | Status | `sensor` | Diagnostic | Always `"online"` while MQTT is connected; HA marks it unavailable on disconnect via the LWT mechanism |
 | Free Heap | `sensor` | Diagnostic | Heap utilisation in percent — `free_heap / total_heap × 100` |
 | Core Temperature | `sensor` | Diagnostic | ESP32 die temperature in °C via `temperatureRead()` |
+| Last Reset Reason | `sensor` | Diagnostic | Why the device last restarted: the text `resetReasonText()` gives for `esp_reset_reason()`, the same as *Reset Reason* in the system status. An enum sensor - its `options` are all texts of that table |
 | Restart | `button` | Control | Publishes `PRESS` payload; device restarts after 1 s |
 
 **Implementation details:**
 
-- The three sensors (Status, Free Heap, Core Temperature) share a single MQTT state topic `~/<deviceId>/diagnostics/state` via `HAGroupedSensorPublisher`. Their individual discovery configs each carry a `value_template` that extracts the right key from the shared JSON payload.
-- State is a JSON object: `{"state":"online","free_heap_percent":42.3,"core_temp":41.7}`.
+- The four sensors (Status, Free Heap, Core Temperature, Last Reset Reason) share a single MQTT state topic `~/<deviceId>/diagnostics/state` via `HAGroupedSensorPublisher`. Their individual discovery configs each carry a `value_template` that extracts the right key from the shared JSON payload.
+- State is a JSON object: `{"state":"online","free_heap_percent":42.3,"core_temp":41.7,"reset_reason":"Reset due to power-on event"}`.
 - Sensor values are refreshed every **60 seconds** via an auto-reload FreeRTOS timer (`xTimerCreate`). On MQTT reconnect the values are also republished immediately as part of `publishAll()`.
 - The Restart button is registered on `haService->mainDevice()` via `registerControl()` — it appears under **Controls** on the HA device page, not in the Diagnostic section.
 
