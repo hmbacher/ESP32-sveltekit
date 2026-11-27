@@ -17,6 +17,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <functional>
+#include <map>
 #include <vector>
 #include <StatefulService.h>
 #include <HomeAssistant/HAService.h>
@@ -88,7 +89,12 @@ public:
         }
     }
 
-    virtual ~HAGroupedSwitchPublisher() = default;
+    virtual ~HAGroupedSwitchPublisher()
+    {
+        if (_haService != nullptr)
+            for (const auto &sub : _subscriptions)
+                _haService->unsubscribe(sub.second.first, sub.second.second);
+    }
 
     /**
      * Register a switch entity bound to one bool field of T.
@@ -193,6 +199,7 @@ protected:
     HAService *_haService;
     String _topicSuffix;
     std::vector<Switch> _switches;
+    std::map<String, std::pair<String, uint32_t>> _subscriptions; ///< objectId -> (command topic, subscription id)
 
     String _sharedStateTopicRel() const
     {
@@ -257,11 +264,17 @@ protected:
 
         Getter getter = sw.getter;
         Setter setter = sw.setter;
-        _haService->subscribe(_commandTopicAbs(sw.objectId),
-                              [this, getter, setter](char *topic, char *payload, int retain, int qos, bool dup)
-                              {
-                                  _onCommand(getter, setter, payload);
-                              });
+        const String topic = _commandTopicAbs(sw.objectId);
+        // HAService replaces the handler of a topic on every publish; a topic that changed gives up the old one
+        auto known = _subscriptions.find(sw.objectId);
+        if (known != _subscriptions.end() && known->second.first != topic)
+            _haService->unsubscribe(known->second.first, known->second.second);
+        const uint32_t id = _haService->subscribe(topic,
+                                                  [this, getter, setter](char *, char *payload, int, int, bool)
+                                                  {
+                                                      _onCommand(getter, setter, payload);
+                                                  });
+        _subscriptions[sw.objectId] = {topic, id};
     }
 
     void _onCommand(Getter getter, Setter setter, const char *payload)

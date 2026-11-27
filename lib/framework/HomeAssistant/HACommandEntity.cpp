@@ -52,10 +52,11 @@ void HACommandEntity::_subscribe()
     if (_haService == nullptr)
         return;
 
-    _haService->subscribe(_commandTopicAbs(),
-                          [this](char *, char *, int, int, bool)
-                          {
-                              if (_onPress)
-                                  _onPress();
-                          });
+    // Replaced on every publish, removed again in the destructor
+    _subscribeCommand(_commandTopicAbs(),
+                      [this](char *, char *, int, int, bool)
+                      {
+                          if (_onPress)
+                              _onPress();
+                      });
 }

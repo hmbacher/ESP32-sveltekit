@@ -120,12 +120,13 @@ private:
         if (_haService == nullptr)
             return;
 
-        _haService->subscribe(_commandTopicAbs(),
-                              [this](char *, char *payload, int, int, bool)
-                              {
-                                  if (payload != nullptr)
-                                      _onCommand(payload);
-                              });
+        // Replaced on every publish, removed again in the destructor
+        _subscribeCommand(_commandTopicAbs(),
+                          [this](char *, char *payload, int, int, bool)
+                          {
+                              if (payload != nullptr)
+                                  _onCommand(payload);
+                          });
     }
 
     void _onCommand(const char *rawPayload)
