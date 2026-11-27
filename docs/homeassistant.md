@@ -586,7 +586,7 @@ Provides five diagnostic entities that work on every ESP32 board without any app
 
 | Entity | HA Component | HA Category | Value / behaviour |
 |---|---|---|---|
-| Status | `sensor` | Diagnostic | Always `"online"` while MQTT is connected; HA marks it unavailable on disconnect via the LWT mechanism |
+| Status | `sensor` | Diagnostic | Connection state of the device. It reads the MQTT status topic: `online`, or `offline` - which the broker sets as the last will when the device disappears |
 | Free Heap | `sensor` | Diagnostic | Heap utilisation in percent — `free_heap / total_heap × 100` |
 | Core Temperature | `sensor` | Diagnostic | ESP32 die temperature in °C via `temperatureRead()` |
 | Last Reset Reason | `sensor` | Diagnostic | Why the device last restarted: the text `resetReasonText()` gives for `esp_reset_reason()`, the same as *Reset Reason* in the system status. An enum sensor - its `options` are all texts of that table |
@@ -594,10 +594,24 @@ Provides five diagnostic entities that work on every ESP32 board without any app
 
 **Implementation details:**
 
-- The four sensors (Status, Free Heap, Core Temperature, Last Reset Reason) share a single MQTT state topic `~/<deviceId>/diagnostics/state` via `HAGroupedSensorPublisher`. Their individual discovery configs each carry a `value_template` that extracts the right key from the shared JSON payload.
+- Status reads the MQTT status topic directly (see [Availability](#availability-of-all-entities)). The other three sensors (Free Heap, Core Temperature, Last Reset Reason) share a single MQTT state topic `~/<deviceId>/diagnostics/state` via `HAGroupedSensorPublisher`. Their individual discovery configs each carry a `value_template` that extracts the right key from the shared JSON payload.
 - State is a JSON object: `{"state":"online","free_heap_percent":42.3,"core_temp":41.7,"reset_reason":"Reset due to power-on event"}`.
 - Sensor values are refreshed every **60 seconds** via an auto-reload FreeRTOS timer (`xTimerCreate`). On MQTT reconnect the values are also republished immediately as part of `publishAll()`.
 - The Restart button is registered on `haService->mainDevice()` via `registerControl()` — it appears under **Controls** on the HA device page, not in the Diagnostic section.
+
+### Availability of all entities
+
+Home Assistant keeps showing the last state of an entity unless it is told that the device is gone. Therefore `HAService::publishConfig()` and `HADevice::publishConfig()` add the MQTT status topic of the device (`MqttSettingsService::getStatusTopic()`, retained `online` / last will `offline`) to the availability of **every** discovery config - no application code required:
+
+```json
+"availability": [ { "topic": "esp32-sveltekit/a1b2c3d4e5f6/status" } ],
+"availability_mode": "all"
+```
+
+- An entity that sets an availability of its own keeps it: a single `availability_topic` (with `availability_template` or payloads) becomes the first entry of the list, an `availability` list is extended. With mode `all` the entity is available only if the device is online **and** its own condition holds.
+- An entity whose `state_topic` is the status topic itself is left alone - the built-in Status sensor, which shows `offline`.
+- If the device just disappears, the broker publishes the last will after one and a half times the MQTT keep alive.
+- Home Assistant keeps applying the `value_template` of an earlier config of an entity when an updated config has none. State a template (`{{ value }}` for plain text) when an entity moves to another kind of payload.
 
 ### HAUpdateService
 

@@ -248,6 +248,8 @@ void ESP32SvelteKit::begin()
     //      them to HAService (sets enabled/prefix/identity)
     //   3. HAUpdateService / HADiagnosticService — register their entities
     //      via HAService::onPublishAll
+    _haService.setStatusTopicProvider([this]()
+                                      { return _mqttSettingsService.getStatusTopic(); });
     _haService.begin();
     _haSettingsService.begin();
     _haUpdateService.begin();
