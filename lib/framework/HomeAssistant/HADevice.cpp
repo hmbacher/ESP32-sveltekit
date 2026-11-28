@@ -150,7 +150,9 @@ bool HADevice::publishConfig(const String &component,
     // the old entity before the new one arrives — otherwise it would keep both
     // and suffix the new entity ID with "_2". No-op for sub-devices, whose
     // node_id never changed.
-    _haService->purgeLegacyConfig(component, objectId, _identity.id);
+    // During the clearing pass of the unique_id switch nothing is published.
+    if (_haService->retireOldConfigs(component, objectId, _identity.id))
+        return true;
 
     int result = _haService->getMqttClient()->publish(
         configTopic.c_str(), 0, true, payload.c_str(), 0, false);

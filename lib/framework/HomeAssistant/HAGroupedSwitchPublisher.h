@@ -227,7 +227,7 @@ protected:
         config["state_topic"]    = _sharedStateTopicRel();
         config["command_topic"]  = _commandTopicRel(sw.objectId);
         config["value_template"] = "{{ value_json." + sw.objectId + " }}";
-        config["unique_id"]      = _haService->getDeviceId() + "_" + sw.objectId;
+        config["unique_id"]      = _haService->uniqueIdPrefix(_haService->getDeviceId()) + "_" + sw.objectId;
 
         if (!sw.name.isEmpty())
             config["name"] = sw.name;

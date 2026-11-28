@@ -103,7 +103,7 @@ void HAUpdateService::_publishUpdateEntity()
 
     JsonDocument config;
     config["name"] = "Firmware Update";
-    config["unique_id"] = _haService->getDeviceId() + "_firmware_update";
+    config["unique_id"] = _haService->uniqueIdPrefix(_haService->getDeviceId()) + "_firmware_update";
     config["state_topic"] = "~/update/state";
     config["command_topic"] = "~/update/install";
     config["payload_install"] = "INSTALL";

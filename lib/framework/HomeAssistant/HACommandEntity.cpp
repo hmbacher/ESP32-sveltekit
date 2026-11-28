@@ -33,7 +33,7 @@ void HACommandEntity::publishAll()
 
     JsonDocument config;
     config["command_topic"] = _commandTopicRel();
-    config["unique_id"] = _getDeviceId() + "_" + _objectId;
+    config["unique_id"] = _getUniqueIdPrefix() + "_" + _objectId;
 
     if (_configBuilder)
     {

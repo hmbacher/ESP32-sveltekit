@@ -160,6 +160,18 @@ public:
     /** @brief Get the unique device identifier (e.g., "genius-gateway-aabbcc") */
     String getDeviceId() const { return _deviceId; }
 
+    /**
+     * @brief Start of the unique_id of an entity of the given device
+     *
+     * Entities of the main (gateway) device use "<deviceId>_main". The plain device ID was the
+     * unique_id base in older versions, and Home Assistant still knows the entities of that time:
+     * it would bring them back with their old entity IDs. Sub-devices keep their device ID.
+     *
+     * @param deviceId Device the entity belongs to (main device or a sub-device)
+     * @return Prefix for the entity's unique_id, followed by "_" and the object ID
+     */
+    String uniqueIdPrefix(const String &deviceId) const;
+
     /** @brief Get the MQTT discovery prefix (e.g., "homeassistant/") */
     String getDiscoveryPrefix() const { return _discoveryPrefix; }
 
@@ -251,6 +263,21 @@ public:
      * @param deviceId  node_id the config was published under
      */
     void purgeLegacyConfig(const String &component, const String &objectId, const String &deviceId);
+
+    /**
+     * @brief Retire what an entity's config replaces, right before it is published
+     *
+     * For the main device only (sub-devices never changed their topics or unique IDs):
+     * clears the legacy config topic (see purgeLegacyConfig()). During the first
+     * publishAll() pass of the unique_id switch it clears the current config topic
+     * instead and tells the caller not to publish - see publishAll().
+     *
+     * @param component HA component type of the config
+     * @param objectId  Entity object ID
+     * @param deviceId  node_id the config is published under
+     * @return true if the caller must not publish the config (clearing pass)
+     */
+    bool retireOldConfigs(const String &component, const String &objectId, const String &deviceId);
 
     /**
      * @brief Publish to a specific MQTT topic
@@ -483,6 +510,27 @@ private:
     String _legacyDeviceId;
     String _legacyBaseTopic;
     bool _legacyPurgeArmed{true};
+
+    // The main device's entities moved to the unique_id prefix "<deviceId>_main". Until that switch
+    // is recorded in MAIN_UNIQUE_ID_FILE, the first publishAll() clears every main-device config,
+    // pauses, and only then publishes them: Home Assistant drops the entities of the old unique_id
+    // and builds the entity IDs of the new one from device and entity name.
+    static constexpr const char *MAIN_UNIQUE_ID_FILE = "/config/ha-identity.json";
+    static constexpr int MAIN_UNIQUE_ID_SCHEME = 1; ///< Value of "main_unique_id_scheme" once switched
+    bool _mainUniqueIdSwitchPending{true};
+    bool _mainConfigClearingPass{false};
+
+    /// Time Home Assistant gets to drop the cleared entities before they are published anew
+    static constexpr uint32_t MAIN_UNIQUE_ID_SWITCH_PAUSE_MS = 3000;
+
+    /// Read from MAIN_UNIQUE_ID_FILE whether the main device's entities already use their new unique IDs
+    void _loadMainUniqueIdState();
+
+    /// Record that the main device's entities were published with their new unique IDs
+    void _storeMainUniqueIdSwitched();
+
+    /// First pass of the unique_id switch: clear every config of the main device, then pause
+    void _clearMainDeviceConfigs(size_t callbackCount);
 
     // Publish / unpublish callbacks (append-only, so an index stays valid)
     using CallbackList = std::vector<PublishAllCallback, PsramAllocator<PublishAllCallback>>;

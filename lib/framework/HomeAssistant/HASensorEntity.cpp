@@ -33,7 +33,7 @@ void HASensorEntity::publishAll()
 
     JsonDocument config;
     config["state_topic"] = _stateTopicRel();
-    config["unique_id"] = _getDeviceId() + "_" + _objectId;
+    config["unique_id"] = _getUniqueIdPrefix() + "_" + _objectId;
 
     if (_configBuilder)
     {

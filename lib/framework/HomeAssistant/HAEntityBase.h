@@ -162,6 +162,12 @@ protected:
      */
     String _getDeviceId() const;
 
+    /**
+     * Start of the entity's `unique_id`: see HAService::uniqueIdPrefix() - the
+     * main device's entities use "<deviceId>_main", sub-devices their device ID.
+     */
+    String _getUniqueIdPrefix() const;
+
     /** "~/<objectId>/state" — relative form for use inside discovery configs. */
     String _stateTopicRel() const;
 

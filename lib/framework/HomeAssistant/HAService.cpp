@@ -15,6 +15,7 @@
 #include <HomeAssistant/HAService.h>
 #include <HomeAssistant/HADevice.h>
 #include <HomeAssistant/HAUtils.h>
+#include <ESPFS.h>
 
 HAService::HAService(PsychicMqttClient *mqttClient)
     : _mqttClient(mqttClient),
@@ -46,6 +47,8 @@ void HAService::begin()
         ESP_LOGW(TAG, "begin() called twice — ignoring");
         return;
     }
+
+    _loadMainUniqueIdState();
 
     BaseType_t ok = xTaskCreate(
         _publishTaskImpl,
@@ -280,8 +283,10 @@ bool HAService::publishConfig(const String &component, const String &objectId, J
 
     // Retire the config at its legacy (name-derived) topic first so HA drops
     // the old entity before the new one arrives — otherwise it would keep both
-    // and suffix the new entity ID with "_2".
-    purgeLegacyConfig(component, objectId, _deviceId);
+    // and suffix the new entity ID with "_2". In the clearing pass of the
+    // unique_id switch nothing is published.
+    if (retireOldConfigs(component, objectId, _deviceId))
+        return true;
 
     int result = _mqttClient->publish(configTopic.c_str(), 0, true, payload.c_str(), 0, false);
 
@@ -295,6 +300,90 @@ bool HAService::publishConfig(const String &component, const String &objectId, J
         ESP_LOGE(TAG, "Failed to publish %s/%s config", component.c_str(), objectId.c_str());
         return false;
     }
+}
+
+bool HAService::retireOldConfigs(const String &component, const String &objectId, const String &deviceId)
+{
+    if (deviceId != _deviceId)
+        return false;
+
+    purgeLegacyConfig(component, objectId, deviceId);
+
+    if (!_mainConfigClearingPass)
+        return false;
+
+    // unique_id switch, first pass: drop the entity of the previous unique_id on this topic.
+    // Published anew after the pause, the entity gets the entity ID Home Assistant builds from
+    // device and entity name - not one it remembers from an old firmware.
+    if (_mqttClient != nullptr && _mqttClient->connected())
+    {
+        String topic = _discoveryPrefix + component + "/" + _deviceId + "/" + objectId + "/config";
+        _mqttClient->publish(topic.c_str(), 0, true, "", 0, false);
+    }
+    return true;
+}
+
+void HAService::_clearMainDeviceConfigs(size_t callbackCount)
+{
+    ESP_LOGI(TAG, "Switching the entities of the main device to their new unique IDs");
+
+    // Same publish run as below, for the main device only: every config is cleared instead of
+    // published (retireOldConfigs()). Sub-device configs of a callback go out as usual.
+    _mainConfigClearingPass = true;
+    for (size_t i = 0; i < callbackCount; i++)
+    {
+        {
+            Lock guard(this);
+            if (!_enabled)
+                break;
+            _invokeCallback(_publishCallbacks, i);
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    {
+        Lock guard(this);
+        if (_enabled && _mainDevice)
+            _mainDevice->publishAll();
+    }
+    _mainConfigClearingPass = false;
+
+    // Let Home Assistant drop the entities first - a config with a new unique_id that arrives
+    // while the old entity of the same topic still exists would be ignored.
+    vTaskDelay(pdMS_TO_TICKS(MAIN_UNIQUE_ID_SWITCH_PAUSE_MS));
+}
+
+String HAService::uniqueIdPrefix(const String &deviceId) const
+{
+    return (deviceId == _deviceId) ? _deviceId + "_main" : deviceId;
+}
+
+void HAService::_loadMainUniqueIdState()
+{
+    _mainUniqueIdSwitchPending = true;
+    File file = ESPFS.open(MAIN_UNIQUE_ID_FILE, "r");
+    if (!file)
+        return;
+
+    JsonDocument doc;
+    if (deserializeJson(doc, file) == DeserializationError::Ok &&
+        (doc["main_unique_id_scheme"] | 0) >= MAIN_UNIQUE_ID_SCHEME)
+        _mainUniqueIdSwitchPending = false;
+    file.close();
+}
+
+void HAService::_storeMainUniqueIdSwitched()
+{
+    File file = ESPFS.open(MAIN_UNIQUE_ID_FILE, "w");
+    if (!file)
+    {
+        ESP_LOGE(TAG, "Could not write %s", MAIN_UNIQUE_ID_FILE);
+        return;
+    }
+
+    JsonDocument doc;
+    doc["main_unique_id_scheme"] = MAIN_UNIQUE_ID_SCHEME;
+    serializeJson(doc, file);
+    file.close();
 }
 
 void HAService::purgeLegacyConfig(const String &component, const String &objectId, const String &deviceId)
@@ -425,6 +514,10 @@ void HAService::publishAll()
     ESP_LOGI(TAG, "Publishing all HA entities (%d callbacks, main+%d sub-devices)",
              (int)callbackCount, (int)subDevices.size());
 
+    // unique_id switch (once): clear the main device's configs first.
+    if (_mainUniqueIdSwitchPending)
+        _clearMainDeviceConfigs(callbackCount);
+
     // The integration can be switched off while this runs (the caller holds the registry
     // lock around unpublishAll() and setEnabled(false)). Checking under the same lock
     // makes this run stop there: what it sent before is removed by that unpublishAll(),
@@ -479,6 +572,16 @@ void HAService::publishAll()
     {
         ESP_LOGI(TAG, "Legacy HA topic purge complete");
         _legacyPurgeArmed = false;
+    }
+
+    // Every main-device config went out with its new unique_id: record the switch, so the entities
+    // are not dropped and created again on the next connect. A run cut short by a lost connection
+    // leaves it pending - the next run repeats it, which is harmless.
+    if (_mainUniqueIdSwitchPending && _mqttClient != nullptr && _mqttClient->connected())
+    {
+        _storeMainUniqueIdSwitched();
+        _mainUniqueIdSwitchPending = false;
+        ESP_LOGI(TAG, "Entities of the main device published with their new unique IDs");
     }
 }
 

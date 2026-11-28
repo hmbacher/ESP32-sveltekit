@@ -117,7 +117,7 @@ void HAGroupedSensorPublisher::_publishSensorConfig(const Sensor &sensor)
 {
     JsonDocument config;
     config["state_topic"] = _sharedStateTopicRel();
-    config["unique_id"]   = _deviceId() + "_" + sensor.objectId;
+    config["unique_id"]   = _haService->uniqueIdPrefix(_deviceId()) + "_" + sensor.objectId;
 
     if (!sensor.name.isEmpty())
         config["name"] = sensor.name;

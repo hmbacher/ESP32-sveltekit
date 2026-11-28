@@ -133,6 +133,12 @@ HAEntityBase &HAEntityBase::setExtraConfig(ConfigBuilder builder)
 // Topic helpers
 // ============================================================================
 
+String HAEntityBase::_getUniqueIdPrefix() const
+{
+    const String deviceId = _getDeviceId();
+    return (_haService != nullptr) ? _haService->uniqueIdPrefix(deviceId) : deviceId;
+}
+
 String HAEntityBase::_getDeviceId() const
 {
     if (_ownerDevice != nullptr)
